@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+*.tgz
+desktop/desktop-config.json
+desktop/registration-backup/
+desktop/registration.json
+*.log

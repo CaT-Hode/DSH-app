@@ -1,0 +1,9 @@
+[
+  { "stream": "system", "text": "启动后端：dsh --profile web --no-open" },
+  { "stream": "stdout", "text": "正在加载插件" },
+  { "stream": "stderr", "text": "Plugin warning: optional service unavailable" },
+  { "stream": "stdout", "text": "http://127.0.0.1:3080/?token=[redacted]" },
+  { "stream": "stderr", "text": "Authorization: [redacted]" },
+  { "stream": "stdout", "text": "{\"api_key\": [redacted], \"password\": [redacted]}" },
+  { "stream": "stdout", "text": "后端已就绪" }
+]

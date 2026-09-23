@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-app-host
+      name: dsh-app
