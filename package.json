@@ -37,8 +37,6 @@
   "scripts": {
     "build": "node scripts/build-preload.mjs",
     "test": "node --test test/*.test.mjs",
-    "check": "npm run build && npm test && node --check lib/index.mjs && node --check desktop/main.mjs && node --check desktop/preload.cjs",
-    "prepare": "node scripts/build-preload.mjs",
-    "prepack": "node scripts/build-preload.mjs"
+    "check": "npm run build && npm test && node --check lib/index.mjs && node --check desktop/main.mjs && node --check desktop/preload.cjs"
   }
 }

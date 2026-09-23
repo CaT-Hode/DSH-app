@@ -10,6 +10,9 @@ test('DSH bundle mounts only DSH App and ships no community plugin dependency', 
   assert.equal(patch.trim(), '- insert:\n    - id: dsh-app-host\n      name: dsh-app')
   assert.deepEqual(manifest.dependencies ?? {}, {})
   assert.deepEqual(Object.keys(manifest.optionalDependencies), ['electron'])
+  for (const script of ['prepare', 'prepack', 'postinstall', 'install']) {
+    assert.equal(manifest.scripts?.[script], undefined, `${script} would require pnpm build approval for Git installs`)
+  }
 })
 
 test('sandbox preload matches the authored base and chrome', () => {
