@@ -34,6 +34,8 @@ npm pack --dry-run --ignore-scripts
 
 `npm run check` rebuilds the sandbox preload and runs the Host IPC, plugin-update, startup-log, and recovery tests. To verify with DSH itself, set an isolated `DSH_HOME`, install the local `.tgz` through `dsh plugin --profile web add`, run `dsh web --no-open`, and confirm `%DSH_HOME%\dsh-app\web.json` appears and its authenticated URL returns HTTP 200. Then start `dsh-app` with the same `DSH_HOME` and verify the Electron title strip and browser entry. The launch token in `web.json` is a secret; do not paste it into issue reports.
 
+For slow-start diagnosis, the app keeps the most recent successful backend transcript and elapsed times in `%DSH_HOME%\dsh-app\last-startup.log`; failures go to `last-startup-failure.log`. Both are bounded and redact common credentials. A later plugin update failure does not overwrite the previous successful transcript.
+
 DSH App currently targets the `web` profile and Windows. It has been tested against DSH `0.1.5-rc.1` from source with Electron 44. DSH is in developer preview, so later Host or client plugin interfaces may require changes.
 
 ## 中文说明

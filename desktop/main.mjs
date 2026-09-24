@@ -75,6 +75,12 @@ function saveStartupFailure(error) {
   log(`Startup transcript saved: ${path}`)
 }
 
+function saveStartupSuccess() {
+  mkdirSync(desktopLink, { recursive: true })
+  const path = join(desktopLink, 'last-startup.log')
+  writeFileSync(path, `${new Date().toISOString()} ready after ${Date.now() - startup.startedAt}ms\n${startup.text()}\n`, { mode: 0o600 })
+}
+
 function validInstance(record) {
   if (record?.schemaVersion !== 1 || record.profile !== 'web' || !Number.isSafeInteger(record.pid) || record.pid < 1) return false
   try {
@@ -148,10 +154,6 @@ async function startBackend(recover = false) {
     return existing
   }
   const recovery = pluginUpdateRecovery(profile, pluginBackups)
-  if (!recover && !recovery && pendingPluginUpdates(profile).length === 0) {
-    const quarantined = enforcePluginQuarantine(profile, desktopLink)
-    for (const item of quarantined) startup.line('system', `已隔离不兼容插件 ${item.packageName}@${item.version}；安装新版后会重新尝试加载。`)
-  }
   let rollback
   let applied = []
   if (recover || recovery?.recovering) {
@@ -162,6 +164,8 @@ async function startBackend(recover = false) {
   } else {
     applied = await installPendingPlugins()
   }
+  const quarantined = enforcePluginQuarantine(profile, desktopLink)
+  for (const item of quarantined) startup.line('system', `已隔离不兼容插件 ${item.packageName}@${item.version}；安装新版后会重新尝试加载。`)
   if (quitAllowed) throw new Error('启动已取消。')
   const { node, cli, cwd, execArgv } = cliRuntime()
   const runner = asset('backend-runner.mjs')
@@ -395,6 +399,8 @@ async function connect(recover = false) {
     startup.line('system', `后端已就绪 · PID ${instance.pid} · 正在打开 DSH`)
     startup.status('loading', '后端已就绪，正在打开界面…')
     log(`Connected to ${instance.origin}; backend=${instance.pid}; owned=${ownsInstance()}`)
+    try { saveStartupSuccess() }
+    catch (error) { log(`Could not save successful startup transcript: ${String(error)}`) }
     if (!quitAllowed && window && !window.isDestroyed()) await window.loadURL(instance.url)
   } finally { connecting = false; applyRequestedUpdates() }
 }
@@ -505,8 +511,17 @@ async function main() {
     window.hide()
     log('Window hidden; shared service retained')
   })
+  const rendererLogTimes = new Map()
   window.webContents.on('console-message', details => {
-    if (details.level === 'error' || details.level === 'warning') log(`Renderer ${details.level}: ${details.message} (${details.sourceId}:${details.lineNumber})`)
+    if (details.level !== 'error' && details.level !== 'warning') return
+    const source = String(details.sourceId || '').split(/[?#]/, 1)[0].slice(0, 256)
+    const message = String(details.message).slice(0, 1024)
+    const key = `${details.level}:${source}:${message.slice(0, 256)}`
+    const now = Date.now()
+    if (now - (rendererLogTimes.get(key) || 0) < 30000) return
+    if (rendererLogTimes.size >= 100) rendererLogTimes.clear()
+    rendererLogTimes.set(key, now)
+    log(`Renderer ${details.level}: ${message} (${source}:${details.lineNumber})`)
   })
   window.webContents.on('did-finish-load', () => log(`Page loaded; title=${window.webContents.getTitle()}; visible=${window.isVisible()}; minimized=${window.isMinimized()}; menuBarVisible=${window.isMenuBarVisible()}`))
   window.on('page-title-updated', (_event, title) => log(`Page title updated: ${title}`))
