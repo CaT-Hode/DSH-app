@@ -25,6 +25,8 @@ Electron 44 is an optional package dependency so the Host plugin can still load 
 
 The DSH App command is installed under the Web profile's `.bin` directory; adding the plugin does not replace the standard `dsh` command or modify Windows registry entries. The package does not publish an installer or auto-update channel.
 
+Ten seconds after connecting, the desktop checks the official npm `latest` and `next` versions of `@deepseek-ai/dsh` and repeats the check every six hours. A top-bar button appears only when the newer published version is newer than the CLI actually used by this app. Its dialog identifies `next` as a prerelease and offers **Install and restart**, release notes, or later. One-click update installs that exact package into `%DSH_HOME%\dsh-app\core-runtimes\<version>` with pnpm 11, preserving the previous CLI and a backup of the Web profile's package metadata. The app switches its managed CLI only after package and command-version checks, then waits for the new shared backend to become ready. If startup fails or the app exits during the switch, it restores the prior CLI and profile metadata. It does not change a source checkout, the global `dsh` command, or an externally started Web process. The action requires a backend owned by DSH App and a discoverable pnpm 11 CLI; `DSH_APP_PNPM_CLI` can name its `pnpm.cjs` explicitly. Plugin updates remain a separate flow and must finish before a core update.
+
 ## Develop and verify
 
 ```powershell
@@ -41,5 +43,7 @@ DSH App currently targets the `web` profile and Windows. It has been tested agai
 ## 中文说明
 
 本仓库只包含 DSH App 自己的 DSH bundle、共享服务桥接、Electron 启动器、顶栏和测试，不包含其他社区插件源码。安装后先运行一次 `dsh web --no-open` 完成插件激活，再执行上面的 `dsh-app.cmd`；此后冷启动可由客户端直接启动隐藏的 DSH 后端。客户端和浏览器使用同一 `web` 配置、插件与会话。启动日志、服务重启、插件更新后的恢复入口保留在客户端中。未安装 Codex UI、MCP 连接器等插件时，DSH App 不会替你安装它们。
+
+客户端连接后会检查官方 npm 的 DSH `latest` 和 `next` 版本，只有发布的新版本高于当前 CLI 时，顶栏才出现“更新 DSH 至 v…”。`next` 会标明为候选版。点击可选择“安装并重启”“查看发布页”或“稍后”。一键更新使用 pnpm 11 把精确版本安装在 `%DSH_HOME%\dsh-app\core-runtimes\<版本>`，保留旧 CLI 并备份 Web profile 的包配置；新后端启动失败或更新中断时会恢复旧 CLI 和包配置。此操作要求当前服务由 DSH App 启动，不会修改源码仓库、全局 `dsh` 命令或外部启动的 Web 服务。若无法自动找到 pnpm 11，可设置 `DSH_APP_PNPM_CLI` 为其 `pnpm.cjs` 路径。插件更新需先完成，之后再更新 DSH 核心。
 
 桌面壳布局参考 [DSH Codex Desktop](https://github.com/MichengAI/dsh-codex-desktop)；第三方素材归属见 [NOTICE.md](NOTICE.md)。

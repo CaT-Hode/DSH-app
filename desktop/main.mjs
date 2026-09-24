@@ -10,6 +10,9 @@ import { startupPage } from './startup-page.mjs'
 import { APPLY_PLUGIN_UPDATES } from './parent-ipc.mjs'
 import { beginPluginUpdate, completePluginRollback, completePluginUpdates, pendingPluginUpdates, pluginUpdateInstalled, pluginUpdateRecovery, preparePluginRollback, recordPluginUpdateFailure, verifyPluginRollback } from './pending-updates.mjs'
 import { enforcePluginQuarantine, quarantineFailedPluginActivation } from './plugin-activation-recovery.mjs'
+import { checkCoreUpdate, readDshVersion, releaseUrl } from './core-update.mjs'
+import { isCurrentCoreUpdateCheck } from './core-update-order.mjs'
+import { backupCoreProfileMetadata, finishCoreRuntime, installCoreRuntime, readActiveCore, restoreCoreProfileMetadata, rollbackCoreRuntime, switchCoreRuntime } from './core-runtime.mjs'
 
 const appId = 'app.cat-hode.dsh-app'
 app.setName('DSH App')
@@ -27,12 +30,15 @@ const cliRuntime = () => {
   let saved = {}
   try { saved = JSON.parse(readFileSync(runtimeFile, 'utf8')) }
   catch (error) { if (error.code !== 'ENOENT') throw error }
-  const cli = process.env.DSH_APP_CLI || saved.cli
-  const node = process.env.DSH_APP_NODE || saved.node
+  const managed = readActiveCore(desktopLink)?.active
+  const cli = process.env.DSH_APP_CLI || managed?.cli || saved.cli
+  const node = process.env.DSH_APP_NODE || managed?.node || saved.node
   if (!cli || !existsSync(cli)) throw new Error('找不到 DSH CLI。请先安装 DSH App 插件并运行一次 dsh web，或设置 DSH_APP_CLI。')
   if (!node || !existsSync(node)) throw new Error('找不到启动 DSH 的 Node.js。请设置 DSH_APP_NODE。')
-  const cwd = saved.cwd && existsSync(saved.cwd) ? saved.cwd : dirname(cli)
-  const execArgv = Array.isArray(saved.execArgv) && saved.execArgv.every(value => typeof value === 'string') ? saved.execArgv : []
+  const cwd = (managed?.cli === cli ? managed.cwd : saved.cwd) && existsSync(managed?.cli === cli ? managed.cwd : saved.cwd)
+    ? (managed?.cli === cli ? managed.cwd : saved.cwd) : dirname(cli)
+  const selectedArgv = managed?.cli === cli ? managed.execArgv : saved.execArgv
+  const execArgv = Array.isArray(selectedArgv) && selectedArgv.every(value => typeof value === 'string') ? selectedArgv : []
   return { cli, node, cwd, execArgv }
 }
 const ownerId = randomUUID()
@@ -54,6 +60,11 @@ let followPending = false
 let replacementReadyUntil = 0
 let startupUrl
 let startupTimer
+let coreUpdateTimer
+let coreUpdateInitialTimer
+let coreUpdateCheck
+let coreUpdating = false
+let coreUpdateState = { phase: 'idle', revision: 0 }
 const startup = new StartupLog(() => {
   if (quitAllowed || startupTimer) return
   startupTimer = setTimeout(() => {
@@ -66,6 +77,46 @@ const startup = new StartupLog(() => {
 function log(message) {
   mkdirSync(desktopLink, { recursive: true })
   appendFileSync(join(desktopLink, 'desktop.log'), `${new Date().toISOString()} ${redact(message)}\n`)
+}
+
+function publishCoreUpdate(state) {
+  coreUpdateState = { ...state, revision: coreUpdateState.revision + 1 }
+  if (window && !window.isDestroyed()) window.webContents.send('dsh:core-update-state', coreUpdateState)
+  return coreUpdateState
+}
+
+function currentCoreVersion() {
+  // A separately launched Web service may still use its original CLI.
+  if (instance && !ownsInstance()) {
+    const recorded = JSON.parse(readFileSync(runtimeFile, 'utf8'))
+    return readDshVersion(recorded.cli)
+  }
+  return readDshVersion(cliRuntime().cli)
+}
+
+function checkForCoreUpdate() {
+  if (quitAllowed || coreUpdating) return Promise.resolve(coreUpdateState)
+  if (coreUpdateCheck) return coreUpdateCheck
+  coreUpdateCheck = (async () => {
+    let currentVersion
+    const revisionAtStart = coreUpdateState.revision
+    try {
+      currentVersion = currentCoreVersion()
+      const state = await checkCoreUpdate(currentVersion)
+      if (quitAllowed || coreUpdating || coreUpdateState.revision !== revisionAtStart) return coreUpdateState
+      if (!isCurrentCoreUpdateCheck(revisionAtStart, currentVersion, coreUpdateState.revision, currentCoreVersion(), coreUpdating)) return coreUpdateState
+      log(`DSH update check: current=${currentVersion ?? 'unknown'}; phase=${state.phase}; latest=${state.version ?? 'none'}`)
+      return publishCoreUpdate(state)
+    } catch (error) {
+      log(`DSH update check failed: ${String(error)}`)
+      if (quitAllowed || coreUpdating || coreUpdateState.revision !== revisionAtStart) return coreUpdateState
+      try { if (!isCurrentCoreUpdateCheck(revisionAtStart, currentVersion, coreUpdateState.revision, currentCoreVersion(), coreUpdating)) return coreUpdateState }
+      catch { return coreUpdateState }
+      if (coreUpdateState.phase === 'available' && coreUpdateState.currentVersion === currentVersion) return coreUpdateState
+      return publishCoreUpdate({ phase: 'error' })
+    }
+  })().finally(() => { coreUpdateCheck = undefined })
+  return coreUpdateCheck
 }
 
 function saveStartupFailure(error) {
@@ -234,7 +285,7 @@ async function startBackend(recover = false) {
 }
 
 function applyRequestedUpdates() {
-  if (!pendingPluginUpdate || connecting || restarting || stopping || quitAllowed) return
+  if (!pendingPluginUpdate || coreUpdating || connecting || restarting || stopping || quitAllowed) return
   const source = pendingPluginUpdate
   pendingPluginUpdate = undefined
   if (backend !== source) return
@@ -377,7 +428,7 @@ async function showStartup(message = '正在加载共享插件与会话…', ret
   if (window.webContents.getURL() !== startupUrl) await window.loadURL(startupUrl)
 }
 
-async function connect(recover = false) {
+async function connect(recover = false, { allowPluginQuarantine = true } = {}) {
   connecting = true
   try {
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -386,7 +437,7 @@ async function connect(recover = false) {
         startup.line('error', String(error))
         try { saveStartupFailure(error) }
         catch (logError) { log(`Could not save startup transcript: ${String(logError)}`) }
-        if (quitAllowed || recover || !(error.dshSharedFatal || /^共享服务退出（\d+）/.test(String(error.message)))
+        if (quitAllowed || recover || !allowPluginQuarantine || !(error.dshSharedFatal || /^共享服务退出（\d+）/.test(String(error.message)))
           || pluginUpdateRecovery(profile, pluginBackups) || pendingPluginUpdates(profile).length > 0 || attempt === 4) throw error
         if (backend) await stopBackend()
         const quarantined = quarantineFailedPluginActivation(profile, desktopLink, pluginBackups, startup.text())
@@ -406,7 +457,7 @@ async function connect(recover = false) {
 }
 
 async function restart(recover = false) {
-  if (restarting || connecting || installer) return
+  if (coreUpdating || restarting || connecting || installer) return
   if (instance && !ownsInstance()) {
     await dialog.showMessageBox(window, { message: '当前服务由 Web 启动命令运行，请在原入口重启。' })
     return
@@ -420,6 +471,83 @@ async function restart(recover = false) {
     await connect(recover)
   } catch (error) { showFailure(error) }
   finally { restarting = false; applyRequestedUpdates() }
+}
+
+async function updateCoreRuntime(target) {
+  if (quitAllowed || coreUpdating || restarting || connecting || installer) return
+  if (!ownsInstance()) throw new Error('当前共享服务由外部 Web 命令启动。请先从该入口停止服务，再由 DSH App 启动后执行一键更新。')
+  if (pendingPluginUpdate || pendingPluginUpdates(profile).length || pluginUpdateRecovery(profile, pluginBackups)) {
+    throw new Error('有待完成或待恢复的插件更新。请先处理插件更新，再升级 DSH 核心。')
+  }
+  const previous = cliRuntime()
+  if (readDshVersion(previous.cli) !== target.currentVersion) throw new Error('当前 DSH 版本已变化，请等待重新检查更新。')
+  coreUpdating = true
+  restarting = true
+  publishCoreUpdate({ phase: 'checking', currentVersion: target.currentVersion })
+  let switched = false
+  let stopped = false
+  let backup
+  try {
+    startup.reset()
+    await showStartup(`正在安装 DSH ${target.version}…`)
+    backup = backupCoreProfileMetadata(profile, pluginBackups)
+    startup.line('system', `已备份插件配置元数据：${backup}`)
+    startup.line('system', `正在使用 pnpm 从官方 npm 安装 DSH ${target.version} 到独立目录…`)
+    const active = await installCoreRuntime({
+      directory: desktopLink, version: target.version, node: previous.node, cwd: previous.cwd,
+      onOutput: (stream, chunk) => startup.append(stream, chunk),
+      onSpawn: child => { installer = child },
+      onExit: child => { if (installer === child) installer = undefined },
+    })
+    if (quitAllowed) return
+    if (pendingPluginUpdate || pendingPluginUpdates(profile).length || pluginUpdateRecovery(profile, pluginBackups)) {
+      throw new Error('安装期间出现插件更新请求；本次核心切换已取消，请先完成插件更新。')
+    }
+    switchCoreRuntime(desktopLink, active, previous, backup)
+    switched = true
+    startup.status('loading', `DSH ${target.version} 已安装，正在重启共享服务…`)
+    if (quitAllowed) return
+    await stopBackend()
+    if (quitAllowed) return
+    stopped = true
+    instance = undefined
+    await connect(false, { allowPluginQuarantine: false })
+    if (quitAllowed) return
+    finishCoreRuntime(desktopLink)
+    publishCoreUpdate({ phase: 'idle', currentVersion: target.version })
+    log(`DSH core updated: ${target.currentVersion} -> ${target.version}; backup=${backup}`)
+  } catch (error) {
+    log(`DSH core update failed: ${String(error)}`)
+    if (quitAllowed) {
+      log(`DSH app is quitting; ${switched ? 'pending core update will roll back on next startup' : 'core installation left inactive'}`)
+      return
+    }
+    if (switched) {
+      startup.line('error', `DSH ${target.version} 启动失败：${String(error)}`)
+      try {
+        await stopBackend()
+        rollbackCoreRuntime(desktopLink)
+        restoreCoreProfileMetadata(profile, pluginBackups, backup)
+        instance = undefined
+        startup.status('loading', '正在恢复更新前的 DSH…')
+        await connect(false, { allowPluginQuarantine: false })
+        log(`DSH core rollback succeeded: ${target.currentVersion}`)
+        await dialog.showMessageBox(window, { type: 'warning', title: 'DSH 更新未完成',
+          message: `新版本启动失败，已恢复 DSH ${target.currentVersion}。`, detail: redact(String(error)), buttons: ['确定'] })
+      } catch (rollbackError) {
+        showFailure(new Error(`DSH 更新失败，恢复旧版本也失败：${String(rollbackError)}`, { cause: error }))
+      }
+    } else {
+      if (!stopped && instance && window && !window.isDestroyed()) await window.loadURL(instance.url)
+      await dialog.showMessageBox(window, { type: 'error', title: 'DSH 更新未完成',
+        message: '新版本安装或校验失败，现有 DSH 未被替换。', detail: redact(String(error)), buttons: ['确定'] })
+    }
+  } finally {
+    coreUpdating = false
+    restarting = false
+    applyRequestedUpdates()
+    if (!quitAllowed) void checkForCoreUpdate()
+  }
 }
 
 async function main() {
@@ -455,6 +583,35 @@ async function main() {
   ipcMain.handle('dsh:copy-startup-log', event => {
     requireStartupFrame(event)
     clipboard.writeText(startup.text())
+  })
+  ipcMain.handle('dsh:core-update-state', event => {
+    requireDesktopFrame(event)
+    return coreUpdateState
+  })
+  ipcMain.handle('dsh:core-update-action', async event => {
+    requireDesktopFrame(event)
+    const state = coreUpdateState
+    if (state.phase !== 'available') return
+    const candidate = state.channel === 'next' ? '候选版（next）' : 'latest 通道'
+    if (!ownsInstance()) {
+      const external = await dialog.showMessageBox(window, {
+        type: 'info', title: 'DSH 更新', message: `发现 DSH ${state.version} ${candidate}（当前 Web 服务由外部命令启动）`,
+        detail: '请从原入口停止 Web 服务，再由 DSH App 启动共享服务以使用一键更新。',
+        buttons: ['查看发布页', '稍后'], defaultId: 0, cancelId: 1,
+      })
+      if (external.response === 0) await shell.openExternal(releaseUrl(state.version))
+      return
+    }
+    const result = await dialog.showMessageBox(window, {
+      type: 'info', title: 'DSH 更新',
+      message: `发现 DSH ${state.version} ${candidate}（当前 ${state.currentVersion}）`,
+      detail: '一键更新会将官方 npm 版本安装到 DSH App 的独立目录，备份插件配置元数据，并在后端启动失败时恢复原来的 DSH。',
+      buttons: ['安装并重启', '查看发布页', '稍后'], defaultId: 0, cancelId: 2,
+    })
+    if (result.response === 0) {
+      try { await updateCoreRuntime(state) }
+      catch (error) { await dialog.showMessageBox(window, { type: 'warning', title: '暂不能一键更新', message: redact(String(error)), buttons: ['确定'] }) }
+    } else if (result.response === 1) await shell.openExternal(releaseUrl(state.version))
   })
   ipcMain.on('dsh:desktop-theme', (event, scheme) => {
     try { requireDesktopFrame(event) } catch { return }
@@ -548,8 +705,16 @@ async function main() {
       window.reload()
     }
   })
+  const pendingCore = readActiveCore(desktopLink)
+  if (pendingCore?.phase === 'pending') {
+    rollbackCoreRuntime(desktopLink)
+    restoreCoreProfileMetadata(profile, pluginBackups, pendingCore.backup)
+    log('Recovered interrupted DSH core update and profile metadata before startup')
+  }
   await showStartup()
   await connect()
+  coreUpdateInitialTimer = setTimeout(() => { void checkForCoreUpdate() }, 10000)
+  coreUpdateTimer = setInterval(() => { void checkForCoreUpdate() }, 6 * 60 * 60 * 1000)
   if (process.argv.includes('--open-web')) await openWeb()
 }
 
@@ -569,6 +734,8 @@ else {
     clearTimeout(followTimer)
     clearInterval(healthTimer)
     clearTimeout(startupTimer)
+    clearTimeout(coreUpdateInitialTimer)
+    clearInterval(coreUpdateTimer)
     pendingPluginUpdate = undefined
     if (!ownsInstance() && !installer) return
     event.preventDefault()

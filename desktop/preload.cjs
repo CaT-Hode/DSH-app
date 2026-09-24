@@ -22,6 +22,7 @@ const labels = {
     quit: '退出 DSH App', plugins: '插件', experts: '专家', skills: '技能', connector: '连接器',
     schedule: '定时任务', im: 'IM 助理', prev: '上一个任务', next: '下一个任务',
     zoomIn: '放大', zoomOut: '缩小', zoomReset: '实际大小', about: '关于 DSH',
+    coreUpdate: '更新 DSH', coreUpdateBusy: '正在处理更新…',
   },
   en: {
     back: 'Back to previous task', forward: 'Forward to next task', search: 'Search sessions', more: 'More desktop actions',
@@ -30,6 +31,7 @@ const labels = {
     quit: 'Quit DSH App', plugins: 'Plugins', experts: 'Experts', skills: 'Skills', connector: 'Connectors',
     schedule: 'Scheduled tasks', im: 'IM assistant', prev: 'Previous task', next: 'Next task',
     zoomIn: 'Zoom in', zoomOut: 'Zoom out', zoomReset: 'Actual size', about: 'About DSH',
+    coreUpdate: 'Update DSH', coreUpdateBusy: 'Processing update…',
   },
 }
 
@@ -39,6 +41,7 @@ const icons = {
   search: '<circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.4 4.4"/>',
   more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
   new: '<path d="M12 5v14M5 12h14"/>',
+  coreUpdate: '<path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v3h16v-3"/>',
 }
 
 const style = `
@@ -70,6 +73,11 @@ html[data-dsh-desktop-chrome] body:has(.dcu-settings-page) .dcu-settings-page { 
 #dsh-desktop-chrome .dsh-chrome-divider { height: 16px; width: 1px; margin: 0 4px; background: var(--dsh-chrome-muted); opacity: .25; }
 #dsh-desktop-chrome .dsh-chrome-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dsh-chrome-muted); }
 #dsh-desktop-chrome .dsh-chrome-spacer { flex: 1; }
+#dsh-desktop-chrome .dsh-chrome-update { display: flex; align-items: center; gap: 5px; flex: none; min-height: 26px; padding: 0 9px; border-radius: 6px; background: #e7efff; color: #315cba; font-weight: 600; }
+#dsh-desktop-chrome .dsh-chrome-update:hover:not(:disabled) { background: #d9e6ff; }
+#dsh-desktop-chrome .dsh-chrome-update:disabled { opacity: .65; cursor: default; }
+#dsh-desktop-chrome .dsh-chrome-update[hidden] { display: none; }
+#dsh-desktop-chrome .dsh-chrome-update svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 #dsh-desktop-chrome .dsh-chrome-menu {
   position: fixed; top: 35px; left: var(--dsh-chrome-menu-left, 108px); width: 244px; max-height: min(650px, calc(100vh - 46px)); overflow: auto;
   padding: 6px; border-radius: 10px; background: var(--dsh-chrome-main); color: var(--dsh-chrome-text);
@@ -85,6 +93,8 @@ html[data-dsh-desktop-theme="dark"] #dsh-desktop-chrome {
   --dsh-chrome-side: #1f2221; --dsh-chrome-main: #191919; --dsh-chrome-text: #dce0df;
   --dsh-chrome-muted: #9aa2a0; --dsh-chrome-hover: #303634; --dsh-chrome-border: #404040;
 }
+html[data-dsh-desktop-theme="dark"] #dsh-desktop-chrome .dsh-chrome-update { background: #25395e; color: #b9d0ff; }
+html[data-dsh-desktop-theme="dark"] #dsh-desktop-chrome .dsh-chrome-update:hover:not(:disabled) { background: #2e4877; }
 @media (prefers-reduced-motion: no-preference) { #dsh-desktop-chrome .dsh-chrome-icon { transition: background .12s ease; } }
 `
 
@@ -137,6 +147,39 @@ function mountDesktopChrome(ipcRenderer) {
   const title = document.createElement('span')
   title.className = 'dsh-chrome-title'
   main.append(title)
+  const spacer = document.createElement('span')
+  spacer.className = 'dsh-chrome-spacer'
+  main.append(spacer)
+  const coreUpdate = document.createElement('button')
+  coreUpdate.type = 'button'
+  coreUpdate.className = 'dsh-chrome-update'
+  coreUpdate.dataset.action = 'coreUpdate'
+  coreUpdate.hidden = true
+  coreUpdate.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${icons.coreUpdate}</svg><span></span>`
+  main.append(coreUpdate)
+
+  let coreUpdateVersion = ''
+  let coreUpdateBusy = false
+  let coreUpdateRevision = -1
+  const renderCoreUpdate = () => {
+    const text = locale()
+    const version = coreUpdateVersion.replace(/^v/i, '')
+    const label = version ? (text === labels.en ? `Update DSH to v${version}` : `更新 DSH 至 v${version}`) : text.coreUpdate
+    coreUpdate.disabled = coreUpdateBusy
+    coreUpdate.querySelector('span').textContent = coreUpdateBusy ? text.coreUpdateBusy : label
+    coreUpdate.title = coreUpdate.ariaLabel = coreUpdate.querySelector('span').textContent
+  }
+  const acceptCoreUpdateState = state => {
+    if (!Number.isSafeInteger(state?.revision) || state.revision < coreUpdateRevision) return
+    coreUpdateRevision = state.revision
+    coreUpdateVersion = state?.phase === 'available' && typeof state.version === 'string' ? state.version : ''
+    coreUpdate.hidden = state?.phase !== 'available'
+    renderCoreUpdate()
+  }
+  ipcRenderer.on('dsh:core-update-state', (_event, state) => acceptCoreUpdateState(state))
+  void ipcRenderer.invoke('dsh:core-update-state').then(acceptCoreUpdateState).catch(error => {
+    console.error('DSH update state failed:', error)
+  })
 
   const menu = document.createElement('div')
   menu.className = 'dsh-chrome-menu'
@@ -231,7 +274,13 @@ function mountDesktopChrome(ipcRenderer) {
     else if (id === 'connector') clickMatching([/^连接器$|^connectors$/i])
     else if (id === 'schedule') clickMatching([/^定时任务$|^scheduled tasks$/i])
     else if (id === 'im') clickMatching([/^IM助理$|^IM assistant$/i])
-    else privileged(id)
+    else if (id === 'coreUpdate') {
+      if (coreUpdate.hidden || coreUpdateBusy) return
+      coreUpdateBusy = true
+      renderCoreUpdate()
+      void ipcRenderer.invoke('dsh:core-update-action').catch(error => console.error('DSH update action failed:', error))
+        .finally(() => { coreUpdateBusy = false; renderCoreUpdate() })
+    } else privileged(id)
   }
   bar.addEventListener('click', event => {
     const target = event.target.closest('button[data-action]')
@@ -265,6 +314,7 @@ function mountDesktopChrome(ipcRenderer) {
     const text = locale()
     for (const element of bar.querySelectorAll('button[data-action]')) element.title = element.ariaLabel = text[element.dataset.action]
     for (const [id, element] of menuButtons) element.textContent = text[id]
+    renderCoreUpdate()
   }
   let sidebarObserved
   let lastScheme
