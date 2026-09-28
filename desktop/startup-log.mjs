@@ -33,6 +33,7 @@ export class StartupLog {
     this.phase = 'loading'
     this.message = ''
     this.recoveryAvailable = false
+    this.coreRollbackVersion = undefined
     this.entries = []
     this.bytes = 0
     this.omitted = 0
@@ -53,9 +54,10 @@ export class StartupLog {
     this.changed()
   }
 
-  /** Offer rollback only when the desktop has retained a pre-update snapshot. */
-  recovery(available) {
-    this.recoveryAvailable = available
+  /** Offer only recovery actions backed by a retained, validated snapshot. */
+  recovery(pluginUpdate, coreRollbackVersion) {
+    this.recoveryAvailable = pluginUpdate
+    this.coreRollbackVersion = coreRollbackVersion
     this.changed()
   }
 
@@ -99,6 +101,7 @@ export class StartupLog {
       revision: this.revision, run: this.run, startedAt: this.startedAt, finishedAt: this.finishedAt,
       phase: this.phase, message: this.message, omitted: this.omitted, entries: [...this.entries],
       ...(this.recoveryAvailable ? { recoveryAvailable: true } : {}),
+      ...(this.coreRollbackVersion ? { coreRollbackVersion: this.coreRollbackVersion } : {}),
     }
   }
 

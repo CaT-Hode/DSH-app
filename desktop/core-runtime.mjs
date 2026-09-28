@@ -44,10 +44,15 @@ export function readActiveCore(directory) {
   catch (error) { if (error.code === 'ENOENT') return; throw error }
   if (state?.schemaVersion !== 1 || !['pending', 'ready'].includes(state.phase)
     || !validRuntime(state.active) || !validRuntime(state.previous)
-    || typeof state.backup !== 'string' || (state.phase === 'pending' && !existsSync(state.backup))) {
+    || typeof state.backup !== 'string' || (state.phase === 'pending' && !existsSync(state.backup))
+    || (state.backupForVersion !== undefined && typeof state.backupForVersion !== 'string')
+    || (state.recoveryBackup !== undefined && typeof state.recoveryBackup !== 'string')) {
     throw new Error('DSH 核心更新记录格式无效。')
   }
-  if (state.phase === 'pending') assertOwnedChild(join(directory, 'backups'), state.backup)
+  if (state.phase === 'pending') {
+    assertOwnedChild(join(directory, 'backups'), state.backup)
+    if (state.recoveryBackup) assertOwnedChild(join(directory, 'backups'), state.recoveryBackup)
+  }
   const managedRoot = join(directory, 'core-runtimes')
   const candidates = [state.active.cli, state.previous.cli]
   if (!candidates.some(cli => {
@@ -56,9 +61,32 @@ export function readActiveCore(directory) {
   return state
 }
 
-export function switchCoreRuntime(directory, active, previous, backup) {
+/** Return the previous runtime only when its matching profile snapshot is available. */
+export function coreRollbackTarget(directory) {
+  const state = readActiveCore(directory)
+  if (!state || state.phase !== 'ready' || state.active.cli === state.previous.cli) return
+  if ((state.backupForVersion ?? state.previous.cli) !== state.previous.cli) return
+  try {
+    assertOwnedChild(join(directory, 'backups'), state.backup)
+    if (!existsSync(state.previous.cli) || !existsSync(state.previous.node) || !existsSync(state.previous.cwd)) return
+    const snapshot = JSON.parse(readFileSync(join(state.backup, 'snapshot.json'), 'utf8'))
+    if (![1, 2].includes(snapshot?.schemaVersion) || !Array.isArray(snapshot.present)) return
+    const files = snapshot.schemaVersion === 1 ? LEGACY_PROFILE_FILES : PROFILE_FILES
+    if (snapshot.present.some(file => !files.includes(file) || !existsSync(join(state.backup, file)))) return
+    return state
+  } catch { return }
+}
+
+/** Persist an active runtime and a recoverable previous runtime before starting it. */
+export function switchCoreRuntime(directory, active, previous, backup, recoveryBackup) {
   if (!validRuntime(active) || !validRuntime(previous)) throw new Error('DSH 核心运行时路径无效。')
-  const state = { schemaVersion: 1, phase: 'pending', active, previous, backup }
+  assertOwnedChild(join(directory, 'backups'), backup)
+  if (recoveryBackup) assertOwnedChild(join(directory, 'backups'), recoveryBackup)
+  const state = {
+    schemaVersion: 1, phase: 'pending', active, previous, backup,
+    backupForVersion: previous.cli,
+    ...(recoveryBackup ? { recoveryBackup } : {}),
+  }
   writeAtomic(join(directory, STATE_FILE), state)
   return state
 }
@@ -66,14 +94,20 @@ export function switchCoreRuntime(directory, active, previous, backup) {
 export function finishCoreRuntime(directory) {
   const state = readActiveCore(directory)
   if (!state || state.phase !== 'pending') throw new Error('没有待完成的 DSH 核心更新。')
-  writeAtomic(join(directory, STATE_FILE), { ...state, phase: 'ready' })
+  writeAtomic(join(directory, STATE_FILE), { ...state, phase: 'ready', recoveryBackup: undefined })
 }
 
-export function rollbackCoreRuntime(directory) {
+/** Complete a failed switch using its previous runtime and the snapshot that matches the other side. */
+export function rollbackCoreRuntime(directory, backup) {
   const state = readActiveCore(directory)
   if (!state || state.phase !== 'pending') return false
+  const recoveryBackup = backup === undefined ? state.recoveryBackup ?? state.backup : backup
+  if (recoveryBackup) assertOwnedChild(join(directory, 'backups'), recoveryBackup)
+  const { recoveryBackup: _recoveryBackup, ...ready } = state
   writeAtomic(join(directory, STATE_FILE), {
-    ...state, phase: 'ready', active: state.previous, previous: state.active,
+    ...ready, phase: 'ready', active: state.previous, previous: state.active,
+    backup: recoveryBackup || state.backup,
+    backupForVersion: recoveryBackup ? state.active.cli : '',
   })
   return true
 }

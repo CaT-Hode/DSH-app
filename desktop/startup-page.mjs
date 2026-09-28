@@ -47,6 +47,9 @@ export function startupPage(whale) {
     #restart:hover { background: #3f5be0; }
     #recover { color: #525d75; border-color: #c8cedc; font-size: 13px; padding: 9px 18px; border-radius: 8px; }
     #recover:hover { background: #e9ecf5; }
+    #core-rollback { color: #525d75; border-color: #c8cedc; font-size: 13px; padding: 9px 18px; border-radius: 8px; }
+    #core-rollback:hover, #diagnostics:hover { background: #e9ecf5; }
+    #diagnostics { color: #525d75; border-color: #c8cedc; font-size: 13px; padding: 9px 18px; border-radius: 8px; }
     [hidden] { display: none !important; }
     @keyframes spin { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { .indicator { animation: none; } }
@@ -67,7 +70,7 @@ export function startupPage(whale) {
       <div id="terminal" tabindex="0"><p id="empty"></p><div id="lines" role="log" aria-live="off"></div></div>
       <div class="console-footer"><span class="live" id="live"></span><span id="count"></span></div>
     </section>
-    <footer><p id="hint"></p><div class="actions"><button id="recover" type="button" hidden>恢复更新前版本</button><button id="restart" type="button" hidden></button></div></footer>
+    <footer><p id="hint"></p><div class="actions"><button id="diagnostics" type="button" hidden>诊断与恢复</button><button id="core-rollback" type="button" hidden></button><button id="recover" type="button" hidden></button><button id="restart" type="button" hidden></button></div></footer>
   </main>
   <script>
     const copy = {
@@ -76,7 +79,8 @@ export function startupPage(whale) {
       elapsed: '已用时', seconds: '秒', waiting: '等待后端输出…', live: '实时输出', retained: '日志已保留',
       pause: '暂停滚动', follow: '继续滚动', copy: '复制日志', copied: '已复制', copyFailed: '复制失败，请重试',
       lines: '行', omitted: '较早的日志已省略', restart: '重新启动', restarting: '正在重新启动…',
-      hint: '服务就绪后将自动进入 DSH', failedHint: '可复制日志排查问题，或重新启动。',
+      recoverPlugin: '恢复更新前插件版本', recoverCore: '切换到 DSH', recoveringCore: '正在恢复 DSH…', diagnostics: '诊断与恢复',
+      hint: '服务就绪后将自动进入 DSH', failedHint: '可打开诊断；有可用备份时可恢复插件或 DSH。',
     }
     const get = id => document.getElementById(id)
     const terminal = get('terminal')
@@ -94,6 +98,7 @@ export function startupPage(whale) {
     get('copy').textContent = copy.copy
     get('hint').textContent = copy.hint
     get('restart').textContent = copy.restart
+    get('recover').textContent = copy.recoverPlugin
     const updateFollow = () => { get('follow').textContent = following ? copy.pause : copy.follow }
     const scrollToEnd = () => { terminal.scrollTop = terminal.scrollHeight }
     function elapsed() {
@@ -139,6 +144,11 @@ export function startupPage(whale) {
       get('restart').disabled = retrying
       get('recover').hidden = next.phase === 'loading' || !next.recoveryAvailable
       get('recover').disabled = retrying
+      get('core-rollback').hidden = next.phase === 'loading' || !next.coreRollbackVersion
+      get('core-rollback').disabled = retrying
+      get('core-rollback').textContent = copy.recoverCore + (next.coreRollbackVersion ? ' ' + next.coreRollbackVersion : '')
+      get('diagnostics').hidden = next.phase === 'loading'
+      get('diagnostics').disabled = retrying
       updateFollow()
       elapsed()
       if (following) scrollToEnd()
@@ -159,22 +169,33 @@ export function startupPage(whale) {
       } catch { get('copy').textContent = copy.copyFailed }
       setTimeout(() => { get('copy').textContent = copy.copy }, 1800)
     })
-    async function restart(recover = false) {
+    async function action(kind) {
       retrying = true
       get('restart').disabled = true
       get('recover').disabled = true
-      get('restart').textContent = copy.restarting
-      try { await (recover ? window.dshDesktop.recoverPluginUpdate() : window.dshDesktop.restart()) }
+      get('core-rollback').disabled = true
+      get('diagnostics').disabled = true
+      get('restart').textContent = kind === 'core' ? copy.recoveringCore : copy.restarting
+      try {
+        if (kind === 'core') await window.dshDesktop.recoverCore()
+        else if (kind === 'plugin') await window.dshDesktop.recoverPluginUpdate()
+        else if (kind === 'diagnostics') await window.dshDesktop.showDiagnostics()
+        else await window.dshDesktop.restart()
+      }
       catch (error) { get('message').textContent = String(error.message || error) }
       finally {
         retrying = false
         get('restart').disabled = false
         get('recover').disabled = false
+        get('core-rollback').disabled = false
+        get('diagnostics').disabled = false
         get('restart').textContent = copy.restart
       }
     }
-    get('restart').addEventListener('click', () => restart())
-    get('recover').addEventListener('click', () => restart(true))
+    get('restart').addEventListener('click', () => action('restart'))
+    get('recover').addEventListener('click', () => action('plugin'))
+    get('core-rollback').addEventListener('click', () => action('core'))
+    get('diagnostics').addEventListener('click', () => action('diagnostics'))
     updateFollow()
     const unsubscribe = window.dshDesktop.onStartupState(render)
     window.dshDesktop.startupState().then(render).catch(error => { get('message').textContent = String(error.message || error) })

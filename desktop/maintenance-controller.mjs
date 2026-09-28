@@ -15,6 +15,9 @@ export class MaintenanceController {
     instance,
     canChange,
     recover,
+    recoveryState,
+    recoverPluginUpdate,
+    recoverCore,
     progress,
     onIdle,
     runner,
@@ -30,6 +33,9 @@ export class MaintenanceController {
       instance,
       canChange,
       recover,
+      recoveryState,
+      recoverPluginUpdate,
+      recoverCore,
       progress,
       onIdle,
       runner,
@@ -38,12 +44,12 @@ export class MaintenanceController {
   }
   /** Read shared records, including when the backend cannot start. */
   read() {
-    return maintenanceReport(this)
+    return maintenanceReport({ ...this, recovery: this.recoveryState })
   }
   /** A check and a recovery cannot overlap or race a core or plugin upgrade. */
   action(request) {
     if (this.operation) throw new Error('Maintenance is already running')
-    if (!request || !['check', 'plugin'].includes(request.kind))
+    if (!request || !['check', 'plugin', 'plugin-update', 'core'].includes(request.kind))
       throw new Error('Invalid maintenance operation')
     this.canChange(request.kind)
     this.abort = new AbortController()
@@ -68,6 +74,8 @@ export class MaintenanceController {
         onProgress: this.progress
       })
     }
+    if (request.kind === 'plugin-update') return this.recoverPluginUpdate()
+    if (request.kind === 'core') return this.recoverCore()
     await writeJson(join(this.directory, 'model-operation.json'), { kind: 'recovery' })
     try {
       return await this.recover(() =>

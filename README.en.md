@@ -20,9 +20,9 @@ DSH App is a community plugin for Windows. Install it into your existing `web` p
 | Use Desktop and Web together | One backend, one `web` profile, shared conversations and plugins |
 | Open and close the app | Native window, whale tray and single-instance behavior; close to tray |
 | Navigate the workbench | Integrated title bar, search, back/forward, action menu and window controls |
-| Understand startup failures | Live backend logs, elapsed time and a restart button |
+| Recover from startup failures | Live backend logs and elapsed time; failed front-end loads return to a safe page with retry, diagnostics and backup-backed recovery actions |
 | Update core and plugins | Core update button only when a newer release exists; installation, restart, configuration backup and recovery |
-| Diagnose problems | Plugin status, individual disable/retry, and checks for conversation creation, presets, model selection and archival |
+| Diagnose and recover | Plugin status and startup-failure logs, individual disable/retry, plugin-update recovery and rollback to a backed-up DSH version |
 | Track model configuration | Original model IDs, ASS provider markers and observed configuration changes |
 
 The package contains its own desktop and maintenance features. Codex UI, plugin markets, MCP connectors and other community plugins are installed separately; the title bar can open their existing pages.
@@ -89,6 +89,7 @@ Follow https://github.com/CaT-Hode/DSH-app to install DSH App into my existing w
 | --- | --- |
 | Open the same service in a browser | Tray or title-bar menu → **Open in browser** |
 | Inspect diagnostics | Title-bar `…` or whale tray → **Diagnostics and recovery** |
+| Recover a startup or front-end failure | Safe startup page → **Restart / Diagnostics and recovery**; plugin or DSH recovery appears when a valid backup exists |
 | Exercise conversation and model operations | Diagnostics → **Run functional check** |
 | Disable a failing plugin | Plugins → **Disable and restart** |
 | Retry the plugin | The same page → **Enable and restart** |
@@ -96,7 +97,7 @@ Follow https://github.com/CaT-Hode/DSH-app to install DSH App into my existing w
 | Reload the interface | `Ctrl+R` |
 | Hide or quit | Close hides to tray; **Exit DSH App** in the tray fully quits |
 
-After authenticating to the shared backend, a browser can read the same records at `/dsh-app/diagnostics`. Restart and recovery actions run in the desktop app. The app only stops a backend it owns; an externally started Web server retains its own lifetime.
+After authenticating to the shared backend, a browser can read the same records at `/dsh-app/diagnostics`. Restart and recovery actions run in the desktop app. If the DSH front end cannot load, the independent safe startup page can still open diagnostics and run recovery backed by a valid snapshot. The app only stops a backend it owns; an externally started Web server retains its own lifetime.
 
 ## Update and uninstall
 

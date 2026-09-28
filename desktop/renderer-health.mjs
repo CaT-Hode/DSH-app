@@ -1,6 +1,6 @@
 import { setTimeout as delay } from 'node:timers/promises'
 
-const FATAL_RENDER = /Minified React error|Element type is invalid|slot entry crashed|Invalid hook call|gateway\/definition-unavailable|Rendered (?:more|fewer) hooks|Cannot read properties of (?:undefined|null) \(reading '(?:createElement|useState|useEffect)'\)/i
+const FATAL_RENDER = /Minified React error|Element type is invalid|slot entry crashed|Invalid hook call|gateway\/definition-unavailable|Rendered (?:more|fewer) hooks|Cannot read properties of (?:undefined|null) \(reading '(?:createElement|useState|useEffect)'\)|web boot:.*(?:[1-9]\d* entr(?:y|ies) did not activate|failed|error)/i
 
 // Check the application root only: the native title bar or a loading page cannot satisfy readiness.
 const PROBE = `(() => {
@@ -12,13 +12,29 @@ const PROBE = `(() => {
     overlay: !!document.querySelector('vite-error-overlay, nextjs-portal'), textLength: text.length, controls }
 })()`
 
+/** Identify renderer errors that prevent the DSH application tree from mounting. */
+export function isFatalRendererMessage(message) {
+  return typeof message === 'string' && FATAL_RENDER.test(message)
+}
+
+/** Read the DSH application root without waiting for the full update stability window. */
+export async function inspectRenderer(contents, timeout = 3000) {
+  let timer
+  try {
+    return await Promise.race([
+      contents.executeJavaScript(PROBE),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('DSH 前端检查超时。')), timeout) }),
+    ])
+  } finally { clearTimeout(timer) }
+}
+
 /** Observe before navigation, then require a responsive, stable application render before committing an update. */
 export function observeRendererHealth(contents) {
   let failure
   const onConsole = (...args) => {
     const details = args.find(value => value && typeof value.message === 'string')
     const message = details?.message ?? args[2]
-    if (typeof message === 'string' && FATAL_RENDER.test(message)) failure = '新版前端发生组件或核心接口错误，已取消更新。'
+    if (isFatalRendererMessage(message)) failure = '新版前端发生组件或核心接口错误，已取消更新。'
   }
   const onGone = () => { failure = '新版前端进程意外退出，已取消更新。' }
   contents.on('console-message', onConsole)

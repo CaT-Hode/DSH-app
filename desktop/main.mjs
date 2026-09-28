@@ -12,9 +12,9 @@ import { beginPluginUpdate, completePluginRollback, completePluginUpdates, pendi
 import { enforcePluginQuarantine, quarantineFailedPluginActivation } from './plugin-activation-recovery.mjs'
 import { checkCoreUpdate, readDshVersion, releaseUrl } from './core-update.mjs'
 import { isCurrentCoreUpdateCheck } from './core-update-order.mjs'
-import { backupCoreProfileMetadata, finishCoreRuntime, installCoreRuntime, readActiveCore, restoreCoreProfileMetadata, rollbackCoreRuntime, switchCoreRuntime } from './core-runtime.mjs'
+import { backupCoreProfileMetadata, coreRollbackTarget, finishCoreRuntime, installCoreRuntime, readActiveCore, restoreCoreProfileMetadata, rollbackCoreRuntime, switchCoreRuntime } from './core-runtime.mjs'
 import { checkCoreCompatibility } from './core-compatibility.mjs'
-import { observeRendererHealth } from './renderer-health.mjs'
+import { inspectRenderer, isFatalRendererMessage, observeRendererHealth } from './renderer-health.mjs'
 import { maintenanceWindow } from './maintenance-window.mjs'
 import { MaintenanceController } from './maintenance-controller.mjs'
 import { captureCapabilities, compareCapabilities, runFunctionalCheck } from '../lib/functional-check.mjs'
@@ -68,6 +68,7 @@ let followPending = false
 let replacementReadyUntil = 0
 let startupUrl
 let startupTimer
+let rendererProbeTimer
 let coreUpdateTimer
 let coreUpdateInitialTimer
 let coreUpdateCheck
@@ -77,6 +78,8 @@ let diagnostics
 let upgradeAbort
 let coreUpdateOperation
 let coreUpdateState = { phase: 'idle', revision: 0 }
+let rendererFailureHandled = false
+let pendingRendererFailure
 const startup = new StartupLog(() => {
   if (quitAllowed || startupTimer) return
   startupTimer = setTimeout(() => {
@@ -142,6 +145,61 @@ function saveStartupSuccess() {
   mkdirSync(desktopLink, { recursive: true })
   const path = join(desktopLink, 'last-startup.log')
   writeFileSync(path, `${new Date().toISOString()} ready after ${Date.now() - startup.startedAt}ms\n${startup.text()}\n`, { mode: 0o600 })
+}
+
+function availableRecoveryActions() {
+  let pluginUpdate = false
+  try { pluginUpdate = !!pluginUpdateRecovery(profile, pluginBackups) }
+  catch (error) { log(`Could not inspect plugin rollback: ${String(error)}`) }
+  let coreRollbackVersion
+  try {
+    const core = coreRollbackTarget(desktopLink)
+    if (core) coreRollbackVersion = readDshVersion(core.previous.cli)
+  } catch (error) { log(`Could not inspect DSH core rollback: ${String(error)}`) }
+  return {
+    pluginUpdate,
+    coreRollbackVersion,
+  }
+}
+
+function updateStartupRecovery() {
+  try {
+    const actions = availableRecoveryActions()
+    startup.recovery(actions.pluginUpdate, actions.coreRollbackVersion)
+  } catch (error) {
+    log(`Could not inspect recovery actions: ${String(error)}`)
+    startup.recovery(false)
+  }
+}
+
+function isCurrentDesktopPage() {
+  if (!instance || !window || window.isDestroyed()) return false
+  try { return new URL(window.webContents.getURL()).origin === instance.origin }
+  catch { return false }
+}
+
+function reportRendererFailure(message) {
+  if (rendererFailureHandled || quitAllowed || restarting || connecting || coreUpdating || stopping || !isCurrentDesktopPage()) return
+  rendererFailureHandled = true
+  const error = new Error(message)
+  log(`DSH frontend failed: ${message}`)
+  showFailure(error)
+}
+
+function scheduleRendererProbe() {
+  clearTimeout(rendererProbeTimer)
+  if (!isCurrentDesktopPage()) return
+  rendererProbeTimer = setTimeout(async () => {
+    rendererProbeTimer = undefined
+    if (!isCurrentDesktopPage() || restarting || connecting || coreUpdating || stopping || quitAllowed) return
+    try {
+      const state = await inspectRenderer(window.webContents)
+      if (state.origin !== instance.origin || state.ready && !state.overlay) return
+      reportRendererFailure('DSH 前端已加载，但应用界面没有正常显示。')
+    } catch (error) {
+      reportRendererFailure(`DSH 前端无响应：${String(error.message || error)}`)
+    }
+  }, 20000)
 }
 
 function validInstance(record) {
@@ -422,8 +480,9 @@ function showFailure(error) {
   startup.line('error', String(error.stack || error))
   try { saveStartupFailure(error) }
   catch (logError) { log(`Could not save startup transcript: ${String(logError)}`) }
-  try { startup.recovery(recordPluginUpdateFailure(profile, pluginBackups, startup.text())) }
+  try { recordPluginUpdateFailure(profile, pluginBackups, startup.text()) }
   catch (backupError) { log(`Could not record update failure: ${String(backupError)}`) }
+  updateStartupRecovery()
   if (window && !window.isDestroyed()) {
     void showStartup('请查看启动日志，或点击下方按钮重新尝试。', true, 'error')
   } else {
@@ -464,15 +523,38 @@ async function connect(recover = false, { allowPluginQuarantine = true } = {}) {
     log(`Connected to ${instance.origin}; backend=${instance.pid}; owned=${ownsInstance()}`)
     try { saveStartupSuccess() }
     catch (error) { log(`Could not save successful startup transcript: ${String(error)}`) }
-    if (!quitAllowed && window && !window.isDestroyed()) await window.loadURL(instance.url)
+    if (!quitAllowed && window && !window.isDestroyed()) {
+      pendingRendererFailure = undefined
+      rendererFailureHandled = false
+      await window.loadURL(instance.url)
+      if (pendingRendererFailure) {
+        const message = pendingRendererFailure
+        pendingRendererFailure = undefined
+        throw new Error(`DSH 前端启动失败：${message}`)
+      }
+    }
   } finally { connecting = false; applyRequestedUpdates() }
 }
 
-async function restart(recover = false) {
-  if (coreUpdating || restarting || connecting || installer || maintenance?.operation) return
+async function restart(recover = false, { fromMaintenance = false } = {}) {
+  if (coreUpdating || restarting || connecting || installer || maintenance?.operation && !fromMaintenance) return
   if (instance && !ownsInstance()) {
     await dialog.showMessageBox(window, { message: '当前服务由 Web 启动命令运行，请在原入口重启。' })
     return
+  }
+  if (recover) {
+    if (!pluginUpdateRecovery(profile, pluginBackups)) throw new Error('没有可恢复的插件更新备份。')
+    if (!fromMaintenance) {
+      const result = await dialog.showMessageBox(window, {
+        type: 'warning', title: '恢复插件更新',
+        message: '将恢复更新前的插件版本和启用配置，然后重启共享服务。',
+        detail: '运行中的任务会中断；会话和模型配置不会回退。',
+        buttons: ['恢复并重启', '取消'], defaultId: 0, cancelId: 1,
+      })
+      if (result.response !== 0) return false
+    }
+    if (coreUpdating || restarting || connecting || installer || maintenance?.operation && !fromMaintenance) return
+    if (!pluginUpdateRecovery(profile, pluginBackups)) throw new Error('插件更新恢复记录已变化，请刷新诊断后重试。')
   }
   restarting = true
   try {
@@ -483,6 +565,84 @@ async function restart(recover = false) {
     await connect(recover)
   } catch (error) { showFailure(error) }
   finally { restarting = false; applyRequestedUpdates() }
+}
+
+async function recoverPreviousCore({ fromMaintenance = false } = {}) {
+  if (quitAllowed || coreUpdating || restarting || connecting || installer || maintenance?.operation && !fromMaintenance)
+    throw new Error('请先完成当前启动或更新操作。')
+  if (instance && !ownsInstance()) throw new Error('当前共享服务由外部命令启动，请从原入口停止后重试。')
+  const target = coreRollbackTarget(desktopLink)
+  if (!target) throw new Error('没有可用的上一个 DSH 版本及其配置备份。')
+  const targetVersion = readDshVersion(target.previous.cli)
+  if (!targetVersion) throw new Error('无法识别上一个 DSH 版本，已保留当前运行版本。')
+  if (!fromMaintenance) {
+    const result = await dialog.showMessageBox(window, {
+      type: 'warning', title: '恢复上一个 DSH 版本',
+      message: `将切换到 DSH ${targetVersion} 并恢复该版本对应的配置备份。`,
+      detail: '共享服务会停止；当前插件和会话文件不会删除。',
+      buttons: ['恢复并重启', '取消'], defaultId: 0, cancelId: 1,
+    })
+    if (result.response !== 0) return false
+  }
+  if (quitAllowed || coreUpdating || restarting || connecting || installer || maintenance?.operation && !fromMaintenance)
+    throw new Error('恢复期间启动状态已变化，请刷新诊断后重试。')
+  const currentTarget = coreRollbackTarget(desktopLink)
+  if (!currentTarget || currentTarget.active.cli !== target.active.cli
+    || currentTarget.previous.cli !== target.previous.cli || currentTarget.backup !== target.backup)
+    throw new Error('DSH 核心或配置备份已变化，请刷新诊断后重试。')
+
+  coreUpdating = true
+  restarting = true
+  let safetyBackup
+  let switched = false
+  let rendererHealth
+  try {
+    startup.reset()
+    await showStartup(`正在恢复 DSH ${targetVersion}…`)
+    await stopBackend()
+    instance = undefined
+    safetyBackup = await backupCoreProfileMetadata(profile, pluginBackups, dshHome)
+    await writeJson(join(desktopLink, 'model-operation.json'), { kind:'recovery' })
+    switchCoreRuntime(desktopLink, target.previous, target.active, safetyBackup, target.backup)
+    switched = true
+    await restoreCoreProfileMetadata(profile, pluginBackups, target.backup, dshHome)
+    rendererHealth = observeRendererHealth(window.webContents)
+    await connect(false, { allowPluginQuarantine: false })
+    const running = JSON.parse(readFileSync(runtimeFile, 'utf8'))
+    if (!ownsInstance() || readDshVersion(running.cli) !== targetVersion)
+      throw new Error(`共享服务未能使用 DSH ${targetVersion} 启动。`)
+    await rendererHealth.verify(new URL(instance.url).origin)
+    finishCoreRuntime(desktopLink)
+    startup.line('system', `已恢复 DSH ${targetVersion} 和对应配置。`)
+    log(`Manual DSH core recovery succeeded: ${targetVersion}; backup=${target.backup}`)
+    return true
+  } catch (error) {
+    rendererHealth?.dispose()
+    if (switched && safetyBackup && !quitAllowed) {
+      let rollbackError
+      try {
+        await stopBackend()
+        rollbackCoreRuntime(desktopLink, target.backup)
+        await restoreCoreProfileMetadata(profile, pluginBackups, safetyBackup, dshHome)
+        instance = undefined
+        await connect(false, { allowPluginQuarantine: false })
+      } catch (failure) { rollbackError = failure }
+      const failure = rollbackError
+        ? new Error(`恢复 DSH ${targetVersion} 失败，重新接回原核心版本也未完成：${String(rollbackError)}`, { cause: error })
+        : new Error(`恢复 DSH ${targetVersion} 未成功；已还原原核心版本。请查看启动日志，或再次尝试恢复。`, { cause: error })
+      showFailure(failure)
+      throw failure
+    }
+    showFailure(error)
+    throw error
+  } finally {
+    rendererHealth?.dispose()
+    try { await writeJson(join(desktopLink, 'model-operation.json'), { kind:'idle' }) }
+    catch (error) { log(`Could not finish the recovery record: ${String(error)}`) }
+    coreUpdating = false
+    restarting = false
+    applyRequestedUpdates()
+  }
 }
 
 async function updateCoreRuntime(target) {
@@ -568,7 +728,7 @@ async function doUpdateCoreRuntime(target) {
       startup.line('error', `DSH ${target.version} 启动失败：${String(error)}`)
       try {
         await stopBackend()
-        rollbackCoreRuntime(desktopLink)
+        rollbackCoreRuntime(desktopLink, null)
         await writeJson(join(desktopLink, 'model-operation.json'), { kind:'recovery' })
         await restoreCoreProfileMetadata(profile, pluginBackups, backup, dshHome)
         instance = undefined
@@ -610,10 +770,19 @@ async function main() {
     if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || event.senderFrame.url !== startupUrl) throw new Error('当前页面不能请求此操作。')
   }
   maintenance = new MaintenanceController({ home:dshHome, profile, directory:desktopLink, runtime:cliRuntime, instance:() => instance,
+    recoveryState:availableRecoveryActions,
+    recoverPluginUpdate:() => restart(true, { fromMaintenance:true }),
+    recoverCore:() => recoverPreviousCore({ fromMaintenance:true }),
     runner:asset('backend-runner.mjs'),
     canChange:kind => {
-      if (quitAllowed || coreUpdating || restarting || connecting || installer || pendingPluginUpdates(profile).length || pluginUpdateRecovery(profile, pluginBackups)) throw new Error('请先完成当前启动或更新操作。')
-      if (kind === 'plugin' && instance && !ownsInstance()) throw new Error('当前服务由外部命令启动，请从原入口停止后重试。')
+      const rollback = kind === 'plugin-update'
+      const updateRecovery = pluginUpdateRecovery(profile, pluginBackups)
+      if (quitAllowed || coreUpdating || restarting || connecting || installer
+        || !rollback && (pendingPluginUpdates(profile).length > 0 || updateRecovery)) throw new Error('请先完成当前启动或更新操作。')
+      if (rollback && !updateRecovery) throw new Error('没有可恢复的插件更新备份。')
+      if (kind === 'core' && !coreRollbackTarget(desktopLink)) throw new Error('没有可用的上一个 DSH 版本及其配置备份。')
+      if (['plugin', 'plugin-update', 'core'].includes(kind) && instance && !ownsInstance())
+        throw new Error('当前服务由外部命令启动，请从原入口停止后重试。')
     },
     progress:value => diagnostics?.progress(value),
     onIdle:applyRequestedUpdates,
@@ -647,6 +816,14 @@ async function main() {
   ipcMain.handle('dsh:recover-plugin-update', event => {
     requireStartupFrame(event)
     return restart(true)
+  })
+  ipcMain.handle('dsh:recover-core', event => {
+    requireStartupFrame(event)
+    return recoverPreviousCore()
+  })
+  ipcMain.handle('dsh:show-diagnostics', event => {
+    requireStartupFrame(event)
+    return diagnostics.show()
   })
   ipcMain.handle('dsh:startup-state', event => {
     requireStartupFrame(event)
@@ -753,11 +930,40 @@ async function main() {
     if (rendererLogTimes.size >= 100) rendererLogTimes.clear()
     rendererLogTimes.set(key, now)
     log(`Renderer ${details.level}: ${message} (${source}:${details.lineNumber})`)
+    if (isFatalRendererMessage(message) && isCurrentDesktopPage()) {
+      if (connecting && !coreUpdating) pendingRendererFailure = message
+      else reportRendererFailure(`DSH 前端发生启动错误：${message}`)
+    }
   })
-  window.webContents.on('did-finish-load', () => log(`Page loaded; title=${window.webContents.getTitle()}; visible=${window.isVisible()}; minimized=${window.isMinimized()}; menuBarVisible=${window.isMenuBarVisible()}`))
+  window.webContents.on('did-finish-load', () => {
+    log(`Page loaded; title=${window.webContents.getTitle()}; visible=${window.isVisible()}; minimized=${window.isMinimized()}; menuBarVisible=${window.isMenuBarVisible()}`)
+    if (isCurrentDesktopPage()) {
+      rendererFailureHandled = false
+      scheduleRendererProbe()
+    } else clearTimeout(rendererProbeTimer)
+  })
   window.on('page-title-updated', (_event, title) => log(`Page title updated: ${title}`))
-  window.webContents.on('render-process-gone', (_event, details) => log(`Renderer stopped: ${details.reason} (${details.exitCode})`))
-  window.webContents.on('did-fail-load', (_event, code, description) => log(`Load failed: ${code} ${description}`))
+  window.webContents.on('render-process-gone', (_event, details) => {
+    log(`Renderer stopped: ${details.reason} (${details.exitCode})`)
+    if (isCurrentDesktopPage()) {
+      if (connecting && !coreUpdating) pendingRendererFailure = `渲染进程退出（${details.reason}，${details.exitCode}）。`
+      else reportRendererFailure(`DSH 前端进程意外退出（${details.reason}，${details.exitCode}）。`)
+    }
+  })
+  window.webContents.on('did-fail-load', (_event, code, description, failedUrl, isMainFrame) => {
+    log(`Load failed: ${code} ${description} (${failedUrl})`)
+    if (code === -3 || !isMainFrame || !instance) return
+    try {
+      if (new URL(failedUrl).origin !== instance.origin) return
+    } catch { return }
+    const message = `DSH 前端加载失败（${code} ${description}）。`
+    if (connecting && !coreUpdating) pendingRendererFailure = message
+    else reportRendererFailure(message)
+  })
+  window.on('unresponsive', () => {
+    log('DSH window stopped responding')
+    reportRendererFailure('DSH 前端无响应。')
+  })
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (instance && new URL(url).origin === instance.origin) return { action: 'allow' }
     if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
@@ -781,7 +987,7 @@ async function main() {
   })
   const pendingCore = readActiveCore(desktopLink)
   if (pendingCore?.phase === 'pending') {
-    rollbackCoreRuntime(desktopLink)
+    rollbackCoreRuntime(desktopLink, pendingCore.recoveryBackup ?? null)
     await restoreCoreProfileMetadata(profile, pluginBackups, pendingCore.backup, dshHome)
     log('Recovered interrupted DSH core update and profile metadata before startup')
   }
@@ -809,6 +1015,7 @@ else {
     clearTimeout(followTimer)
     clearInterval(healthTimer)
     clearTimeout(startupTimer)
+    clearTimeout(rendererProbeTimer)
     clearTimeout(coreUpdateInitialTimer)
     clearInterval(coreUpdateTimer)
     pendingPluginUpdate = undefined
