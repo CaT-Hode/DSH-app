@@ -22,7 +22,7 @@ const labels = {
     quit: '退出 DSH App', plugins: '插件', experts: '专家', skills: '技能', connector: '连接器',
     schedule: '定时任务', im: 'IM 助理', prev: '上一个任务', next: '下一个任务',
     zoomIn: '放大', zoomOut: '缩小', zoomReset: '实际大小', about: '关于 DSH',
-    coreUpdate: '更新 DSH', coreUpdateBusy: '正在处理更新…',
+    coreUpdate: '更新 DSH', coreUpdateBusy: '正在处理更新…', diagnostics: '诊断与恢复',
   },
   en: {
     back: 'Back to previous task', forward: 'Forward to next task', search: 'Search sessions', more: 'More desktop actions',
@@ -31,7 +31,7 @@ const labels = {
     quit: 'Quit DSH App', plugins: 'Plugins', experts: 'Experts', skills: 'Skills', connector: 'Connectors',
     schedule: 'Scheduled tasks', im: 'IM assistant', prev: 'Previous task', next: 'Next task',
     zoomIn: 'Zoom in', zoomOut: 'Zoom out', zoomReset: 'Actual size', about: 'About DSH',
-    coreUpdate: 'Update DSH', coreUpdateBusy: 'Processing update…',
+    coreUpdate: 'Update DSH', coreUpdateBusy: 'Processing update…', diagnostics: 'Diagnostics and recovery',
   },
 }
 
@@ -102,7 +102,7 @@ const groups = [
   [['new', 'Ctrl+N'], ['search', 'Ctrl+F'], ['sidebar', 'Ctrl+B'], ['back', 'Ctrl+['], ['forward', 'Ctrl+]'], ['prev', 'Ctrl+Shift+['], ['next', 'Ctrl+Shift+]']],
   [['plugins'], ['experts'], ['skills'], ['connector'], ['schedule'], ['im'], ['settings']],
   [['web', 'Ctrl+Shift+B'], ['reload', 'Ctrl+R'], ['restart'], ['zoomIn', 'Ctrl++'], ['zoomOut', 'Ctrl+-'], ['zoomReset', 'Ctrl+0'], ['full', 'F11'], ['devtools', 'F12']],
-  [['about'], ['quit', 'Ctrl+Q']],
+  [['diagnostics'], ['about'], ['quit', 'Ctrl+Q']],
 ]
 
 function mountDesktopChrome(ipcRenderer) {

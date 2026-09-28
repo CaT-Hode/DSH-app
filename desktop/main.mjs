@@ -15,6 +15,12 @@ import { isCurrentCoreUpdateCheck } from './core-update-order.mjs'
 import { backupCoreProfileMetadata, finishCoreRuntime, installCoreRuntime, readActiveCore, restoreCoreProfileMetadata, rollbackCoreRuntime, switchCoreRuntime } from './core-runtime.mjs'
 import { checkCoreCompatibility } from './core-compatibility.mjs'
 import { observeRendererHealth } from './renderer-health.mjs'
+import { maintenanceWindow } from './maintenance-window.mjs'
+import { MaintenanceController } from './maintenance-controller.mjs'
+import { captureCapabilities, compareCapabilities, runFunctionalCheck } from '../lib/functional-check.mjs'
+import { readModelConfiguration, compareModelConfiguration } from '../lib/model-audit.mjs'
+import { configurationRevision } from '../lib/configuration-snapshot.mjs'
+import { writeJson } from '../lib/files.mjs'
 
 const appId = 'app.cat-hode.dsh-app'
 app.setName('DSH App')
@@ -66,6 +72,10 @@ let coreUpdateTimer
 let coreUpdateInitialTimer
 let coreUpdateCheck
 let coreUpdating = false
+let maintenance
+let diagnostics
+let upgradeAbort
+let coreUpdateOperation
 let coreUpdateState = { phase: 'idle', revision: 0 }
 const startup = new StartupLog(() => {
   if (quitAllowed || startupTimer) return
@@ -287,7 +297,7 @@ async function startBackend(recover = false) {
 }
 
 function applyRequestedUpdates() {
-  if (!pendingPluginUpdate || coreUpdating || connecting || restarting || stopping || quitAllowed) return
+  if (!pendingPluginUpdate || coreUpdating || connecting || restarting || stopping || quitAllowed || maintenance?.operation) return
   const source = pendingPluginUpdate
   pendingPluginUpdate = undefined
   if (backend !== source) return
@@ -459,7 +469,7 @@ async function connect(recover = false, { allowPluginQuarantine = true } = {}) {
 }
 
 async function restart(recover = false) {
-  if (coreUpdating || restarting || connecting || installer) return
+  if (coreUpdating || restarting || connecting || installer || maintenance?.operation) return
   if (instance && !ownsInstance()) {
     await dialog.showMessageBox(window, { message: '当前服务由 Web 启动命令运行，请在原入口重启。' })
     return
@@ -476,7 +486,13 @@ async function restart(recover = false) {
 }
 
 async function updateCoreRuntime(target) {
-  if (quitAllowed || coreUpdating || restarting || connecting || installer) return
+  if (coreUpdateOperation) return coreUpdateOperation
+  coreUpdateOperation = doUpdateCoreRuntime(target).finally(() => { coreUpdateOperation = undefined })
+  return coreUpdateOperation
+}
+
+async function doUpdateCoreRuntime(target) {
+  if (quitAllowed || coreUpdating || restarting || connecting || installer || maintenance?.operation) return
   if (!ownsInstance()) throw new Error('当前共享服务由外部 Web 命令启动。请先从该入口停止服务，再由 DSH App 启动后执行一键更新。')
   if (pendingPluginUpdate || pendingPluginUpdates(profile).length || pluginUpdateRecovery(profile, pluginBackups)) {
     throw new Error('有待完成或待恢复的插件更新。请先处理插件更新，再升级 DSH 核心。')
@@ -484,6 +500,7 @@ async function updateCoreRuntime(target) {
   const previous = cliRuntime()
   if (readDshVersion(previous.cli) !== target.currentVersion) throw new Error('当前 DSH 版本已变化，请等待重新检查更新。')
   coreUpdating = true
+  upgradeAbort = new AbortController()
   restarting = true
   publishCoreUpdate({ phase: 'checking', currentVersion: target.currentVersion })
   let switched = false
@@ -491,6 +508,9 @@ async function updateCoreRuntime(target) {
   let backup
   let rendererHealth
   try {
+    const before = await captureCapabilities(instance, { signal: upgradeAbort.signal })
+    const configBefore = await readModelConfiguration(dshHome, profile)
+    const revisionBefore = await configurationRevision({ home:dshHome, profile })
     startup.reset()
     await showStartup(`正在安装 DSH ${target.version}…`)
     startup.line('system', `正在使用 pnpm 从官方 npm 安装 DSH ${target.version} 到独立目录…`)
@@ -503,20 +523,27 @@ async function updateCoreRuntime(target) {
     if (quitAllowed) return
     startup.status('loading', '正在检查已启用插件与新版 DSH 的兼容性…')
     await checkCoreCompatibility({ node: active.node, cli: active.cli, profile, version: target.version })
+    startup.status('loading', '正在独立验证新建对话、模式切换、模型和归档…')
+    const functional = await runFunctionalCheck({ home:dshHome, profile, directory:desktopLink, runtime:active, expected:before,
+      runner:asset('backend-runner.mjs'),
+      signal:upgradeAbort.signal, onProgress:value => startup.line('system', `${value.kind}: ${value.subject} · ${value.status}`) })
+    if (functional.status !== 'passed') throw new Error(`新版 DSH 功能检查未通过：${functional.message}`)
+    if (await configurationRevision({ home:dshHome, profile }) !== revisionBefore) throw new Error('检查期间共享配置已变化，请重新执行更新。')
     if (pendingPluginUpdate || pendingPluginUpdates(profile).length || pluginUpdateRecovery(profile, pluginBackups)) {
       throw new Error('安装期间出现插件更新请求；本次核心切换已取消，请先完成插件更新。')
     }
-    backup = await backupCoreProfileMetadata(profile, pluginBackups)
+    await stopBackend()
+    stopped = true
+    instance = undefined
+    if (await configurationRevision({ home:dshHome, profile }) !== revisionBefore) throw new Error('停止服务时共享配置已变化，请重新执行更新。')
+    backup = await backupCoreProfileMetadata(profile, pluginBackups, dshHome)
+    await writeJson(join(desktopLink, 'model-operation.json'), { kind:'upgrade' })
     startup.line('system', `已备份插件配置元数据：${backup}`)
     if (quitAllowed) return
     switchCoreRuntime(desktopLink, active, previous, backup)
     switched = true
     startup.status('loading', `DSH ${target.version} 已安装，正在重启共享服务…`)
     if (quitAllowed) return
-    await stopBackend()
-    if (quitAllowed) return
-    stopped = true
-    instance = undefined
     rendererHealth = observeRendererHealth(window.webContents)
     await connect(false, { allowPluginQuarantine: false })
     const running = JSON.parse(readFileSync(runtimeFile, 'utf8'))
@@ -524,6 +551,8 @@ async function updateCoreRuntime(target) {
       throw new Error('新版共享服务未使用目标 DSH 版本，请检查 DSH_APP_CLI 覆盖配置。')
     }
     await rendererHealth.verify(new URL(instance.url).origin)
+    compareCapabilities(before, await captureCapabilities(instance, { signal:upgradeAbort.signal }))
+    compareModelConfiguration(configBefore, await readModelConfiguration(dshHome, profile))
     if (quitAllowed) return
     finishCoreRuntime(desktopLink)
     publishCoreUpdate({ phase: 'idle', currentVersion: target.version })
@@ -540,7 +569,8 @@ async function updateCoreRuntime(target) {
       try {
         await stopBackend()
         rollbackCoreRuntime(desktopLink)
-        await restoreCoreProfileMetadata(profile, pluginBackups, backup)
+        await writeJson(join(desktopLink, 'model-operation.json'), { kind:'recovery' })
+        await restoreCoreProfileMetadata(profile, pluginBackups, backup, dshHome)
         instance = undefined
         startup.status('loading', '正在恢复更新前的 DSH…')
         await connect(false, { allowPluginQuarantine: false })
@@ -551,6 +581,7 @@ async function updateCoreRuntime(target) {
         showFailure(new Error(`DSH 更新失败，恢复旧版本也失败：${String(rollbackError)}`, { cause: error }))
       }
     } else {
+      if (stopped && !quitAllowed) await connect(false, { allowPluginQuarantine: false })
       if (!stopped && instance && window && !window.isDestroyed()) await window.loadURL(instance.url)
       await dialog.showMessageBox(window, { type: 'error', title: 'DSH 更新未完成',
         message: '新版本安装或校验失败，现有 DSH 未被替换。', detail: redact(String(error)), buttons: ['确定'] })
@@ -558,6 +589,8 @@ async function updateCoreRuntime(target) {
   } finally {
     rendererHealth?.dispose()
     coreUpdating = false
+    upgradeAbort = undefined
+    await writeJson(join(desktopLink, 'model-operation.json'), { kind:'idle' })
     restarting = false
     applyRequestedUpdates()
     if (!quitAllowed) void checkForCoreUpdate()
@@ -576,6 +609,31 @@ async function main() {
   const requireStartupFrame = event => {
     if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || event.senderFrame.url !== startupUrl) throw new Error('当前页面不能请求此操作。')
   }
+  maintenance = new MaintenanceController({ home:dshHome, profile, directory:desktopLink, runtime:cliRuntime, instance:() => instance,
+    runner:asset('backend-runner.mjs'),
+    canChange:kind => {
+      if (quitAllowed || coreUpdating || restarting || connecting || installer || pendingPluginUpdates(profile).length || pluginUpdateRecovery(profile, pluginBackups)) throw new Error('请先完成当前启动或更新操作。')
+      if (kind === 'plugin' && instance && !ownsInstance()) throw new Error('当前服务由外部命令启动，请从原入口停止后重试。')
+    },
+    progress:value => diagnostics?.progress(value),
+    onIdle:applyRequestedUpdates,
+    recover:async change => {
+      restarting = true
+      try {
+        startup.reset()
+        await showStartup('正在应用插件恢复操作…')
+        await stopBackend()
+        instance = undefined
+        const result = await change()
+        await connect()
+        return result
+      } catch (error) {
+        if (!instance && !quitAllowed) await connect()
+        throw error
+      } finally { restarting = false }
+    },
+  })
+  diagnostics = maintenanceWindow({ parent:window, read:() => maintenance.read(), action:request => maintenance.action(request) })
   const requireDesktopFrame = event => {
     if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || !instance) throw new Error('当前页面不能请求桌面操作。')
     let origin
@@ -636,6 +694,7 @@ async function main() {
     requireDesktopFrame(event)
     if (typeof action !== 'string') throw new Error('桌面操作无效。')
     if (action === 'web') return openWeb()
+    if (action === 'diagnostics') return diagnostics.show()
     if (action === 'restart') return restart()
     if (action === 'reload') return window.reload()
     if (action === 'full') return window.setFullScreen(!window.isFullScreen())
@@ -672,6 +731,7 @@ async function main() {
     { label: '在浏览器打开', click: () => void openWeb() },
     { label: '刷新界面', click: () => window?.reload() },
     { label: '重启共享服务', click: () => void restart() },
+    { label: '诊断与恢复', click: () => void diagnostics.show() },
     { type: 'separator' },
     { label: '退出 DSH App', click: () => app.quit() },
   ]))
@@ -722,7 +782,7 @@ async function main() {
   const pendingCore = readActiveCore(desktopLink)
   if (pendingCore?.phase === 'pending') {
     rollbackCoreRuntime(desktopLink)
-    await restoreCoreProfileMetadata(profile, pluginBackups, pendingCore.backup)
+    await restoreCoreProfileMetadata(profile, pluginBackups, pendingCore.backup, dshHome)
     log('Recovered interrupted DSH core update and profile metadata before startup')
   }
   await showStartup()
@@ -744,6 +804,7 @@ else {
   app.on('before-quit', event => {
     if (quitAllowed) return
     quitAllowed = true
+    upgradeAbort?.abort(new Error('Application is closing'))
     instanceWatcher?.close()
     clearTimeout(followTimer)
     clearInterval(healthTimer)
@@ -751,9 +812,15 @@ else {
     clearTimeout(coreUpdateInitialTimer)
     clearInterval(coreUpdateTimer)
     pendingPluginUpdate = undefined
-    if (!ownsInstance() && !installer) return
+    if (!ownsInstance() && !installer && !maintenance?.operation && !coreUpdateOperation) return
     event.preventDefault()
-    void (async () => { await stopInstaller(); await stopBackend() })()
+    void (async () => {
+      await maintenance?.dispose()
+      await stopInstaller()
+      await coreUpdateOperation?.catch(error => log(`Update stopped during exit: ${String(error)}`))
+      diagnostics?.dispose()
+      await stopBackend()
+    })()
       .catch(error => log(`Service shutdown failed: ${String(error)}`)).finally(() => app.quit())
   })
   if (process.argv.includes('--quit')) app.quit()

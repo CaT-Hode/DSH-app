@@ -1,53 +1,161 @@
-# DSH App
+<p align="center"><img src="desktop/DSH.svg" width="96" alt="DSH App 鲸鱼图标"></p>
+<h1 align="center">DSH App</h1>
+<p align="center">把 DeepSeek Harness 装进桌面窗口，继续使用同一份 Web 插件、配置与对话。</p>
+<p align="center"><strong>简体中文</strong> · <a href="README.en.md">English</a> · <a href="https://github.com/CaT-Hode/DSH-app/releases">版本下载</a> · <a href="https://github.com/CaT-Hode/DSH-app/issues">反馈问题</a></p>
+<p align="center">
+  <img src="https://img.shields.io/badge/DSH-Plugin-4d6bfe" alt="DSH 插件">
+  <img src="https://img.shields.io/badge/Windows-Electron-1673c9" alt="Windows Electron">
+  <img src="https://img.shields.io/badge/Node.js-24%2B-339933" alt="Node.js 24+">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue" alt="MIT"></a>
+</p>
 
-DSH App is a Windows Electron companion **installed as a DeepSeek Harness plugin**. Its bundle adds one small Host bridge to the existing `web` profile; the `dsh-app` command opens that same authenticated DSH instance in a native window. If no instance is running, the app starts the installed DSH CLI with a hidden console, displays its live startup output, and chooses a free loopback port. The browser entry in the tray opens the same backend, sessions, settings, and plugin profile.
+DSH App 是面向 Windows 的社区插件。安装到现有 `web` profile 后，可以直接打开 Electron 窗口；托盘中的“在浏览器打开”连接同一个后端。已安装的插件、会话和设置继续使用。它不是 DeepSeek 官方客户端。
 
-This repository contains only DSH App's bridge, launcher, Electron window, UI strip, icons, and their tests. It does **not** bundle Codex UI, the plugin market, MCP Connector, pets, or any other community plugin. Menu entries for those features act only when the corresponding plugin is separately installed. The strip integrates with the stock DSH workbench as well as Codex UI; it follows the sidebar width, border, and theme and stays accessible above Codex UI's settings page.
+[功能](#功能) · [演示](#演示) · [安装](#安装) · [使用](#使用) · [更新与卸载](#更新与卸载) · [常见问题](#常见问题)
 
-## Install and run
+## 功能
 
-Requirements: Windows, Node.js 24+, the DSH CLI, and pnpm. From the directory where `dsh` is available:
+| 日常操作 | DSH App 提供的体验 |
+| --- | --- |
+| 桌面与 Web 共用 | 同一后端、同一 `web` profile、同一份对话和插件 |
+| 打开与关闭 | 原生窗口、鲸鱼托盘、单实例；关闭窗口驻留托盘 |
+| 桌面顶栏 | 融合侧栏的标题栏，搜索、前进后退、快捷菜单和窗口控制 |
+| 冷启动与故障 | 实时显示后端日志、耗时，失败后可直接重启 |
+| 核心与插件更新 | 检测到 DSH 新版才显示更新按钮；安装、重启、配置备份与失败恢复 |
+| 诊断与恢复 | 查看插件状态，单独停用或重试；检查新建、模式切换、模型选择及归档 |
+| 模型来源 | 保留模型原始 ID，识别 ASS 提供商标记，记录观察到的配置变化 |
+
+插件只提供自身的桌面与维护功能。Codex UI、插件市场、MCP 连接器等由各自插件提供，需单独安装；顶栏可调用已有插件的页面。
+
+## 演示
+
+**桌面窗口与顶栏**
+
+![DSH App 桌面与顶栏](https://raw.githubusercontent.com/CaT-Hode/DSH-app/media/v0.2.0/desktop.gif)
+
+**诊断与功能检查**
+
+![DSH App 诊断与功能检查](https://raw.githubusercontent.com/CaT-Hode/DSH-app/media/v0.2.0/diagnostics.gif)
+
+演示使用独立配置下的真实 DSH `0.1.7-rc.2` 和原生 Web 界面，不包含个人会话。功能检查不发送模型消息；GIF 的播放节奏用于展示操作，不代表性能测量。
+
+## 安装
+
+### 准备
+
+- Windows，Node.js **24 或以上**，pnpm **11**。
+- 已安装 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)，终端中可运行 `dsh`。
+- 当前版本已在 DSH **0.1.7-rc.2**、Electron **44** 上实测。DSH 仍在快速迭代，其他版本请先运行功能检查。
+
+### 1. 添加插件
+
+在 PowerShell 中执行：
 
 ```powershell
 dsh plugin --profile web add 'git+https://github.com/CaT-Hode/DSH-app.git'
-dsh web --no-open
 ```
 
-The first Web start activates the plugin and writes the local CLI path to `%USERPROFILE%\.dsh\dsh-app\runtime.json`. Stop that foreground Web command, then launch the installed desktop command:
+这是 GitHub 安装源；本项目目前没有 npm 发布包。也可将 Releases 中的 `.tgz` 文件路径传给同一条 `dsh plugin --profile web add` 命令。
+
+### 2. 首次激活
 
 ```powershell
-& "$HOME\.dsh\profiles\web\node_modules\.bin\dsh-app.cmd"
+dsh --profile web --no-open
 ```
 
-DSH App reuses an already running Web instance when possible. For a one-command cold start after the initial activation, use the same `dsh-app.cmd` command. `dsh-app --open-web` also opens the shared instance in the system browser; closing the window leaves DSH in the tray, and **Exit DSH App** stops only a backend started by this app. The startup page retains sanitized backend output and offers a retry button on failure. Plugin updates reported through DSH's pending-update protocol are applied on restart with backup and restore support.
+等待 Web 服务就绪。插件会记住当前 DSH 的启动入口；之后按 `Ctrl+C` 停止这次前台服务。
 
-Electron 44 is an optional package dependency so the Host plugin can still load if the Electron binary is unavailable. pnpm may defer the binary download until the first `dsh-app` launch, which can take longer and needs network access. If that download fails, set `DSH_APP_ELECTRON` to a compatible `electron.exe`. `DSH_APP_CLI` and `DSH_APP_NODE` can override the remembered DSH runtime paths. `DSH_APP_PORT` can request a specific port; the default `0` lets Windows allocate a free loopback port.
-
-The DSH App command is installed under the Web profile's `.bin` directory; adding the plugin does not replace the standard `dsh` command or modify Windows registry entries. The package does not publish an installer or auto-update channel.
-
-Ten seconds after connecting, the desktop checks the official npm `latest` and `next` versions of `@deepseek-ai/dsh` and repeats the check every six hours. A top-bar button appears only when the newer published version is newer than the CLI actually used by this app. Its dialog identifies `next` as a prerelease and offers **Install and restart**, release notes, or later. One-click update installs that exact package into `%DSH_HOME%\dsh-app\core-runtimes\<version>` with pnpm 11, preserving the previous CLI and a backup of the Web profile's package metadata. The app switches its managed CLI only after package and command-version checks, then waits for the new shared backend to become ready. If startup fails or the app exits during the switch, it restores the prior CLI and profile metadata. It does not change a source checkout, the global `dsh` command, or an externally started Web process. The action requires a backend owned by DSH App and a discoverable pnpm 11 CLI; `DSH_APP_PNPM_CLI` can name its `pnpm.cjs` explicitly. Plugin updates remain a separate flow and must finish before a core update.
-
-Core upgrades check enabled plugins with the candidate DSH core in a separate process before stopping the old backend. Update incompatible plugins first. Configuration snapshots use asynchronous file copies and exclude generated dependency caches. After switching, the app requires a stable, responsive application render; blank pages, renderer crashes, and fatal component or core-interface errors restore the old runtime and configuration. HTTP readiness alone cannot complete an upgrade.
-
-## Develop and verify
+### 3. 打开客户端
 
 ```powershell
-npm run check
-npm pack --dry-run --ignore-scripts
+$dshHome = if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $HOME '.dsh' }
+& (Join-Path $dshHome 'profiles\web\node_modules\.bin\dsh-app.cmd')
 ```
 
-`npm run check` rebuilds the sandbox preload and runs the Host IPC, plugin-update, startup-log, and recovery tests. To verify with DSH itself, set an isolated `DSH_HOME`, install the local `.tgz` through `dsh plugin --profile web add`, run `dsh web --no-open`, and confirm `%DSH_HOME%\dsh-app\web.json` appears and its authenticated URL returns HTTP 200. Then start `dsh-app` with the same `DSH_HOME` and verify the Electron title strip and browser entry. The launch token in `web.json` is a secret; do not paste it into issue reports.
+以后使用第三步即可冷启动客户端。Electron 在独立窗口中运行，后端控制台隐藏；启动日志显示在窗口内。
 
-For slow-start diagnosis, the app keeps the most recent successful backend transcript and elapsed times in `%DSH_HOME%\dsh-app\last-startup.log`; failures go to `last-startup-failure.log`. Both are bounded and redact common credentials. A later plugin update failure does not overwrite the previous successful transcript.
+<details>
+<summary>交给本地 Agent 安装</summary>
 
-DSH App currently targets the `web` profile and Windows. Electron 44 verification covers DSH `0.1.5-rc.1` from source and a complete one-click upgrade to the published `0.1.7-rc.2`, including rendered readiness. DSH is in developer preview, so later Host or client plugin interfaces may require changes.
+```text
+请按 https://github.com/CaT-Hode/DSH-app 的 README，将 DSH App 安装到我现有的 web profile，保留已有配置、模型和插件。先验证 dsh、Node.js 24+ 和 pnpm 11 可用，添加 GitHub 插件源，启动一次 Web 完成激活，再打开 dsh-app.cmd。不要覆盖其他插件或把它误当成 npm 上的 dsh-app 包。
+```
 
-## 中文说明
+</details>
 
-本仓库只包含 DSH App 自己的 DSH bundle、共享服务桥接、Electron 启动器、顶栏和测试，不包含其他社区插件源码。安装后先运行一次 `dsh web --no-open` 完成插件激活，再执行上面的 `dsh-app.cmd`；此后冷启动可由客户端直接启动隐藏的 DSH 后端。客户端和浏览器使用同一 `web` 配置、插件与会话。启动日志、服务重启、插件更新后的恢复入口保留在客户端中。未安装 Codex UI、MCP 连接器等插件时，DSH App 不会替你安装它们。
+## 使用
 
-客户端连接后会检查官方 npm 的 DSH `latest` 和 `next` 版本，只有发布的新版本高于当前 CLI 时，顶栏才出现“更新 DSH 至 v…”。`next` 会标明为候选版。点击可选择“安装并重启”“查看发布页”或“稍后”。一键更新使用 pnpm 11 把精确版本安装在 `%DSH_HOME%\dsh-app\core-runtimes\<版本>`，保留旧 CLI 并备份 Web profile 的包配置；新后端启动失败或更新中断时会恢复旧 CLI 和包配置。此操作要求当前服务由 DSH App 启动，不会修改源码仓库、全局 `dsh` 命令或外部启动的 Web 服务。若无法自动找到 pnpm 11，可设置 `DSH_APP_PNPM_CLI` 为其 `pnpm.cjs` 路径。插件更新需先完成，之后再更新 DSH 核心。
+| 想做什么 | 操作入口 |
+| --- | --- |
+| 同时使用浏览器 | 托盘或顶栏菜单 → **在浏览器打开** |
+| 查看诊断 | 顶栏 `…` 或鲸鱼托盘 → **诊断与恢复** |
+| 检查对话与模型操作 | 诊断与恢复 → **运行功能检查** |
+| 停用故障插件 | 诊断与恢复 → 插件状态 → **暂时停用并重启** |
+| 恢复该插件 | 同一页面 → **重新启用并重启** |
+| 查看模型改动 | 诊断与恢复 → **模型来源 / 变更记录** |
+| 刷新界面 | `Ctrl+R` |
+| 隐藏窗口 / 完全退出 | 关闭窗口驻留托盘；托盘 → **退出 DSH App** 完全退出 |
 
-停止旧后端前，待升级核心会在独立进程中检查已启用插件；不兼容的插件需先更新。配置备份使用异步文件复制，排除生成的依赖缓存。切换后还会检查应用主体能否稳定渲染并响应；白屏、渲染进程崩溃或致命组件、核心接口错误均触发旧运行时和配置恢复。仅后端 HTTP 就绪不会判定升级成功。
+浏览器登录同一后端后，可访问 `/dsh-app/diagnostics` 查看相同记录；重启和恢复从客户端发起。客户端只停止自己启动的后端，连接外部 Web 服务时不会接管其退出。
 
-桌面壳布局参考 [DSH Codex Desktop](https://github.com/MichengAI/dsh-codex-desktop)；第三方素材归属见 [NOTICE.md](NOTICE.md)。
+## 更新与卸载
+
+**更新 DSH App 插件**：先退出客户端，重新执行安装命令，再启动 Web 激活新版，随后启动客户端。插件市场收录后，也可使用市场的更新和重启流程。
+
+**更新 DSH 核心**：有新版本时，点击顶栏更新按钮，选择“安装并重启”。升级前在临时目录检查模式、模型和对话操作，切换后检查实际界面响应；失败会尝试恢复旧核心与配置。此操作不更改全局 `dsh` 或源码仓库，也不回滚会话及插件数据迁移。
+
+**卸载插件**：退出客户端后执行：
+
+```powershell
+dsh plugin --profile web remove dsh-app
+```
+
+重新启动 DSH Web 后，仍可从浏览器使用已有对话和其他插件。
+
+## 常见问题
+
+<details>
+<summary>找不到 Electron，或者首次启动失败？</summary>
+
+Electron 是可选依赖。二进制下载可能需要联网；包管理器的安装策略或网络失败会使插件已安装、窗口却无法启动。可以把 `DSH_APP_ELECTRON` 设置为已有的兼容 `electron.exe` 路径后重试。找不到 DSH 启动入口时，先完成“首次激活”。
+
+</details>
+
+<details>
+<summary>诊断里的“ASS 标识”能证明是谁修改了模型吗？</summary>
+
+不能。它按提供商 ID 的命名约定识别 ASS 配置。变更记录只保存运行期间观察到的前后值，外部写入者标为未知；首次启动建立基线，不补造历史，也可能遗漏两次观察之间的中间修改。密钥不会写入模型审计记录。
+
+</details>
+
+<details>
+<summary>功能检查会调用模型或修改我的对话吗？</summary>
+
+检查使用临时 DSH 目录，新建空白对话、切换模式与模型，再执行归档；不发送模型消息，也不使用已有对话。它不验证额度或模型回答。插件仍会执行各自的正常启动逻辑。
+
+</details>
+
+<details>
+<summary>可以配置路径、端口和记录数量吗？</summary>
+
+| 配置 | 用途 |
+| --- | --- |
+| `DSH_HOME` | 使用已有的非默认 DSH 数据目录 |
+| `DSH_APP_ELECTRON` | 指定 Electron 可执行文件 |
+| `DSH_APP_NODE` / `DSH_APP_CLI` | 显式指定后端 Node 和 DSH CLI |
+| `DSH_APP_PORT` | 指定本机端口；默认 `0`，由系统分配 |
+| `DSH_APP_PNPM_CLI` | 指定核心更新使用的 pnpm 11 `pnpm.cjs` |
+| Host `auditIntervalMs` | 模型配置观察间隔，默认 2000 ms，范围 500–60000 |
+| Host `historyLimit` | 保留的模型变更条数，默认 200，范围 1–2000 |
+
+运行记录位于 `$DSH_HOME/dsh-app`：最近启动日志、配置备份、插件隔离记录和模型审计均保存在本地。本机仓库适配版使用 `desktop-link`。连接描述文件包含认证令牌，请勿贴到公开问题中。
+
+</details>
+
+## 生态与项目范围
+
+DSH App 使用标准 `dsh.bundle.patch` 安装，面向 `web` profile。可通过 [GitHub 的 dsh-plugin 主题](https://github.com/topics/dsh-plugin) 发现社区插件；[awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) 是插件市场使用的社区目录。收录由该目录维护者审核。
+
+仓库保留 `bin/` 启动入口、`desktop/` 桌面壳、`lib/` Host 与维护模块，以及必需的构建脚本。`npm run build` 生成已随仓库提供的 sandbox preload。开发测试、快照和录制中间文件不随源码主分支发布。
+
+MIT · 图标与参考项目归属见 [NOTICE.md](NOTICE.md)。

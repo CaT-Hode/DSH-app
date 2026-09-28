@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs'
 import { copyFile, mkdir, mkdtemp, unlink, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { snapshotConfiguration, restoreConfiguration } from '../lib/configuration-snapshot.mjs'
 
 const PACKAGE = '@deepseek-ai/dsh'
 const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/
@@ -78,7 +79,7 @@ export function rollbackCoreRuntime(directory) {
 }
 
 /** Copy durable metadata asynchronously; dependency trees and generated link caches are never snapshots. */
-export async function backupCoreProfileMetadata(profile, backupRoot) {
+export async function backupCoreProfileMetadata(profile, backupRoot, home) {
   await mkdir(backupRoot, { recursive: true })
   const folder = await mkdtemp(join(backupRoot, 'core-update-'))
   const present = []
@@ -88,12 +89,14 @@ export async function backupCoreProfileMetadata(profile, backupRoot) {
     if (existsSync(join(folder, filename))) present.push(filename)
   }
   await writeFile(join(folder, 'snapshot.json'), JSON.stringify({ schemaVersion: 2, present }, null, 2) + '\n')
+  if (home) await snapshotConfiguration({ home, profile, folder })
   return folder
 }
 
-export async function restoreCoreProfileMetadata(profile, backupRoot, folder) {
+export async function restoreCoreProfileMetadata(profile, backupRoot, folder, home) {
   if (typeof folder !== 'string' || !existsSync(folder)) throw new Error('DSH 核心更新备份不存在。')
   assertOwnedChild(backupRoot, folder)
+  if (home && await restoreConfiguration({ home, profile, folder, backupRoot })) return
   const snapshot = JSON.parse(readFileSync(join(folder, 'snapshot.json'), 'utf8'))
   if (![1, 2].includes(snapshot?.schemaVersion) || !Array.isArray(snapshot.present)
     || snapshot.present.some(filename => !PROFILE_FILES.includes(filename))) throw new Error('DSH 核心更新备份格式无效。')

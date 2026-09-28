@@ -1,7 +1,7 @@
 {
   "name": "dsh-app",
-  "version": "0.1.3",
-  "description": "Windows Electron companion for a shared DeepSeek Harness Web profile",
+  "version": "0.2.0",
+  "description": "DSH desktop plugin for Windows: one Electron window, shared Web sessions and plugins, live startup logs and update recovery.",
   "type": "module",
   "main": "./lib/index.mjs",
   "exports": {
@@ -18,6 +18,7 @@
     "lib/",
     "cordis.patch.yml",
     "README.md",
+    "README.en.md",
     "LICENSE",
     "NOTICE.md"
   ],
@@ -26,17 +27,33 @@
       "patch": "./cordis.patch.yml"
     }
   },
-  "keywords": ["dsh", "dsh-plugin", "deepseek-harness", "electron", "desktop", "windows"],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "electron",
+    "desktop",
+    "windows"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/CaT-Hode/DSH-app.git"
   },
+  "homepage": "https://github.com/CaT-Hode/DSH-app#readme",
+  "bugs": {
+    "url": "https://github.com/CaT-Hode/DSH-app/issues"
+  },
   "license": "MIT",
-  "engines": { "node": ">=24" },
-  "optionalDependencies": { "electron": "44.0.0" },
+  "engines": {
+    "node": ">=24"
+  },
+  "optionalDependencies": {
+    "electron": "44.0.0"
+  },
   "scripts": {
-    "build": "node scripts/build-preload.mjs",
-    "test": "node --test test/*.test.mjs",
-    "check": "npm run build && npm test && node --check lib/index.mjs && node --check desktop/main.mjs && node --check desktop/preload.cjs"
+    "build": "node scripts/build-preload.mjs"
+  },
+  "dependencies": {
+    "yaml": "2.8.1"
   }
 }

@@ -38,7 +38,7 @@ export function enforcePluginQuarantine(profile, desktopLink) {
   const manifest = readJson(join(profile, 'package.json'))
   const bundles = manifest.dsh?.profile?.bundles
   if (!Array.isArray(bundles)) throw new Error('插件启用配置格式无效。')
-  const retained = state.plugins.filter(item => installedVersion(profile, item.packageName) === item.version
+  const retained = state.plugins.filter(item => (installedVersion(profile, item.packageName) === item.version || item.reason === 'user-disabled')
     && Object.hasOwn(manifest.dependencies ?? {}, item.packageName))
   const blocked = new Set(retained.map(item => item.packageName))
   const filtered = bundles.filter(name => !blocked.has(name))
