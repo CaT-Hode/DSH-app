@@ -13,6 +13,8 @@ import { enforcePluginQuarantine, quarantineFailedPluginActivation } from './plu
 import { checkCoreUpdate, readDshVersion, releaseUrl } from './core-update.mjs'
 import { isCurrentCoreUpdateCheck } from './core-update-order.mjs'
 import { backupCoreProfileMetadata, finishCoreRuntime, installCoreRuntime, readActiveCore, restoreCoreProfileMetadata, rollbackCoreRuntime, switchCoreRuntime } from './core-runtime.mjs'
+import { checkCoreCompatibility } from './core-compatibility.mjs'
+import { observeRendererHealth } from './renderer-health.mjs'
 
 const appId = 'app.cat-hode.dsh-app'
 app.setName('DSH App')
@@ -487,11 +489,10 @@ async function updateCoreRuntime(target) {
   let switched = false
   let stopped = false
   let backup
+  let rendererHealth
   try {
     startup.reset()
     await showStartup(`正在安装 DSH ${target.version}…`)
-    backup = backupCoreProfileMetadata(profile, pluginBackups)
-    startup.line('system', `已备份插件配置元数据：${backup}`)
     startup.line('system', `正在使用 pnpm 从官方 npm 安装 DSH ${target.version} 到独立目录…`)
     const active = await installCoreRuntime({
       directory: desktopLink, version: target.version, node: previous.node, cwd: previous.cwd,
@@ -500,9 +501,14 @@ async function updateCoreRuntime(target) {
       onExit: child => { if (installer === child) installer = undefined },
     })
     if (quitAllowed) return
+    startup.status('loading', '正在检查已启用插件与新版 DSH 的兼容性…')
+    await checkCoreCompatibility({ node: active.node, cli: active.cli, profile, version: target.version })
     if (pendingPluginUpdate || pendingPluginUpdates(profile).length || pluginUpdateRecovery(profile, pluginBackups)) {
       throw new Error('安装期间出现插件更新请求；本次核心切换已取消，请先完成插件更新。')
     }
+    backup = await backupCoreProfileMetadata(profile, pluginBackups)
+    startup.line('system', `已备份插件配置元数据：${backup}`)
+    if (quitAllowed) return
     switchCoreRuntime(desktopLink, active, previous, backup)
     switched = true
     startup.status('loading', `DSH ${target.version} 已安装，正在重启共享服务…`)
@@ -511,12 +517,19 @@ async function updateCoreRuntime(target) {
     if (quitAllowed) return
     stopped = true
     instance = undefined
+    rendererHealth = observeRendererHealth(window.webContents)
     await connect(false, { allowPluginQuarantine: false })
+    const running = JSON.parse(readFileSync(runtimeFile, 'utf8'))
+    if (!ownsInstance() || readDshVersion(running.cli) !== target.version) {
+      throw new Error('新版共享服务未使用目标 DSH 版本，请检查 DSH_APP_CLI 覆盖配置。')
+    }
+    await rendererHealth.verify(new URL(instance.url).origin)
     if (quitAllowed) return
     finishCoreRuntime(desktopLink)
     publishCoreUpdate({ phase: 'idle', currentVersion: target.version })
     log(`DSH core updated: ${target.currentVersion} -> ${target.version}; backup=${backup}`)
   } catch (error) {
+    rendererHealth?.dispose()
     log(`DSH core update failed: ${String(error)}`)
     if (quitAllowed) {
       log(`DSH app is quitting; ${switched ? 'pending core update will roll back on next startup' : 'core installation left inactive'}`)
@@ -527,7 +540,7 @@ async function updateCoreRuntime(target) {
       try {
         await stopBackend()
         rollbackCoreRuntime(desktopLink)
-        restoreCoreProfileMetadata(profile, pluginBackups, backup)
+        await restoreCoreProfileMetadata(profile, pluginBackups, backup)
         instance = undefined
         startup.status('loading', '正在恢复更新前的 DSH…')
         await connect(false, { allowPluginQuarantine: false })
@@ -543,6 +556,7 @@ async function updateCoreRuntime(target) {
         message: '新版本安装或校验失败，现有 DSH 未被替换。', detail: redact(String(error)), buttons: ['确定'] })
     }
   } finally {
+    rendererHealth?.dispose()
     coreUpdating = false
     restarting = false
     applyRequestedUpdates()
@@ -708,7 +722,7 @@ async function main() {
   const pendingCore = readActiveCore(desktopLink)
   if (pendingCore?.phase === 'pending') {
     rollbackCoreRuntime(desktopLink)
-    restoreCoreProfileMetadata(profile, pluginBackups, pendingCore.backup)
+    await restoreCoreProfileMetadata(profile, pluginBackups, pendingCore.backup)
     log('Recovered interrupted DSH core update and profile metadata before startup')
   }
   await showStartup()

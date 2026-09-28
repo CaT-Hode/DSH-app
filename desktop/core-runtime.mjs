@@ -1,11 +1,13 @@
 import { spawn } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs'
+import { copyFile, mkdir, mkdtemp, unlink, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 
 const PACKAGE = '@deepseek-ai/dsh'
 const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/
 const STATE_FILE = 'active-core.json'
-const PROFILE_FILES = ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', '.dsh-pending-updates.json', '.dsh-app-update.json']
+const LEGACY_PROFILE_FILES = ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', '.dsh-pending-updates.json', '.dsh-app-update.json']
+const PROFILE_FILES = [...LEGACY_PROFILE_FILES, 'cordis.patch.yml', 'cordis.yml']
 
 function exactVersion(version) {
   if (typeof version !== 'string' || !VERSION.test(version)) throw new Error('DSH 更新版本无效。')
@@ -75,29 +77,34 @@ export function rollbackCoreRuntime(directory) {
   return true
 }
 
-export function backupCoreProfileMetadata(profile, backupRoot) {
-  mkdirSync(backupRoot, { recursive: true })
-  const folder = mkdtempSync(join(backupRoot, 'core-update-'))
+/** Copy durable metadata asynchronously; dependency trees and generated link caches are never snapshots. */
+export async function backupCoreProfileMetadata(profile, backupRoot) {
+  await mkdir(backupRoot, { recursive: true })
+  const folder = await mkdtemp(join(backupRoot, 'core-update-'))
   const present = []
   for (const filename of PROFILE_FILES) {
-    try { copyFileSync(join(profile, filename), join(folder, filename)) }
+    try { await copyFile(join(profile, filename), join(folder, filename)) }
     catch (error) { if (error.code !== 'ENOENT') throw error }
     if (existsSync(join(folder, filename))) present.push(filename)
   }
-  writeFileSync(join(folder, 'snapshot.json'), JSON.stringify({ schemaVersion: 1, present }, null, 2) + '\n')
+  await writeFile(join(folder, 'snapshot.json'), JSON.stringify({ schemaVersion: 2, present }, null, 2) + '\n')
   return folder
 }
 
-export function restoreCoreProfileMetadata(profile, backupRoot, folder) {
+export async function restoreCoreProfileMetadata(profile, backupRoot, folder) {
   if (typeof folder !== 'string' || !existsSync(folder)) throw new Error('DSH 核心更新备份不存在。')
   assertOwnedChild(backupRoot, folder)
   const snapshot = JSON.parse(readFileSync(join(folder, 'snapshot.json'), 'utf8'))
-  if (snapshot?.schemaVersion !== 1 || !Array.isArray(snapshot.present)
+  if (![1, 2].includes(snapshot?.schemaVersion) || !Array.isArray(snapshot.present)
     || snapshot.present.some(filename => !PROFILE_FILES.includes(filename))) throw new Error('DSH 核心更新备份格式无效。')
-  for (const filename of PROFILE_FILES) {
+  // Older snapshots did not capture Cordis files and must not remove them during recovery.
+  for (const filename of snapshot.schemaVersion === 1 ? LEGACY_PROFILE_FILES : PROFILE_FILES) {
     const target = join(profile, filename)
-    if (snapshot.present.includes(filename)) copyFileSync(join(folder, filename), target)
-    else rmSync(target, { force: true })
+    if (snapshot.present.includes(filename)) await copyFile(join(folder, filename), target)
+    else {
+      try { await unlink(target) }
+      catch (error) { if (error.code !== 'ENOENT') throw error }
+    }
   }
 }
 
