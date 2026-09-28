@@ -37,7 +37,7 @@ The package contains its own desktop and maintenance features. Codex UI, plugin 
 
 ![DSH App diagnostics and functional checks](https://raw.githubusercontent.com/CaT-Hode/DSH-app/media/v0.2.0/diagnostics.gif)
 
-Recorded with real DSH `0.1.7-rc.2`, the stock Web interface and a separate demo home without personal conversations. The check sends no model messages. GIF playback is paced to show the workflow, not to measure performance.
+Recorded with real DSH `0.1.7-rc.2`, the stock Web interface and a separate demo home without personal conversations. GIFs show key frames captured in one run. The check sends no model messages; playback is paced to show the workflow, not to measure performance.
 
 ## Installation
 

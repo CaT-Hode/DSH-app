@@ -37,7 +37,7 @@ DSH App 是面向 Windows 的社区插件。安装到现有 `web` profile 后，
 
 ![DSH App 诊断与功能检查](https://raw.githubusercontent.com/CaT-Hode/DSH-app/media/v0.2.0/diagnostics.gif)
 
-演示使用独立配置下的真实 DSH `0.1.7-rc.2` 和原生 Web 界面，不包含个人会话。功能检查不发送模型消息；GIF 的播放节奏用于展示操作，不代表性能测量。
+演示使用独立配置下的真实 DSH `0.1.7-rc.2` 和原生 Web 界面，不包含个人会话。GIF 由同一次运行的操作关键帧组成，功能检查不发送模型消息；播放节奏用于展示操作，不代表性能测量。
 
 ## 安装
 
