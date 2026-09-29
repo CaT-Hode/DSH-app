@@ -1,6 +1,6 @@
 {
   "name": "dsh-app",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "DSH desktop plugin for Windows: one Electron window, shared Web sessions and plugins, live startup logs and update recovery.",
   "type": "module",
   "main": "./lib/index.mjs",
@@ -51,7 +51,8 @@
     "electron": "44.0.0"
   },
   "scripts": {
-    "build": "node scripts/build-preload.mjs"
+    "build": "node scripts/build-preload.mjs",
+    "test": "node --test tests/cost-meter.spec.mjs"
   },
   "dependencies": {
     "yaml": "2.8.1"

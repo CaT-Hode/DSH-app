@@ -24,6 +24,7 @@ DSH App is a community plugin for Windows. Install it into your existing `web` p
 | Update core and plugins | Core update button only when a newer release exists; installation, restart, configuration backup and recovery |
 | Diagnose and recover | Plugin status and startup-failure logs, individual disable/retry, plugin-update recovery and rollback to a backed-up DSH version |
 | Track model configuration | Original model IDs, ASS provider markers and observed configuration changes |
+| Track cost and usage | Local model-usage estimates by day, model and conversation, budget reminders, and imported `dsh-cost-meter` history |
 
 The package contains its own desktop and maintenance features. Codex UI, plugin markets, MCP connectors and other community plugins are installed separately; the title bar can open their existing pages.
 
@@ -94,10 +95,13 @@ Follow https://github.com/CaT-Hode/DSH-app to install DSH App into my existing w
 | Disable a failing plugin | Plugins → **Disable and restart** |
 | Retry the plugin | The same page → **Enable and restart** |
 | Inspect model changes | **Model sources / Change history** |
+| Inspect costs | Title-bar `…` → **Cost and usage**; the shared Web service also serves `/dsh-app/cost` |
 | Reload the interface | `Ctrl+R` |
 | Hide or quit | Close hides to tray; **Exit DSH App** in the tray fully quits |
 
 After authenticating to the shared backend, a browser can read the same records at `/dsh-app/diagnostics`. Restart and recovery actions run in the desktop app. If the DSH front end cannot load, the independent safe startup page can still open diagnostics and run recovery backed by a valid snapshot. The app only stops a backend it owns; an externally started Web server retains its own lifetime.
+
+On its first read, the cost page copies daily, model and conversation totals plus pricing and budget settings from an existing `dsh-cost-meter` ledger into a separate file; the original is unchanged. It then records only new model-usage events, with no historical session scan or external balance request during cold start. Amounts are estimates from saved prices; calls without a price remain counted and marked unpriced. External account balances and third-party quotas are outside this page. After confirming the history, you can uninstall the old cost plugin through the plugin market.
 
 ## Update and uninstall
 
