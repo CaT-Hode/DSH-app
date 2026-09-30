@@ -1,5 +1,7 @@
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join, relative } from 'node:path'
+import { randomUUID } from 'node:crypto'
+import { MARKET_OPERATIONS_FILE, completeMarketOperations, readMarketOperations, recordMarketResults } from './market-operations.mjs'
 
 const PENDING_FILE = '.dsh-pending-updates.json'
 const UPDATE_STATE = '.dsh-app-update.json'
@@ -26,6 +28,34 @@ export function pendingPluginUpdates(profile) {
   return [...targets.values()]
 }
 
+/** Include legacy update requests and marketplace requests when serializing desktop maintenance. */
+export function hasPendingPluginOperations(profile) {
+  return pendingPluginUpdates(profile).length > 0 || readMarketOperations(profile).length > 0
+}
+
+/** Cancel one legacy exact-version request without changing installed packages or recovery backups.
+ * @param profile Active profile directory.
+ * @param packageName Package whose legacy pending request should be removed.
+ */
+export function cancelPendingPluginUpdate(profile, packageName) {
+  if (typeof packageName !== 'string' || !PACKAGE_NAME.test(packageName)) throw new Error('插件包名无效。')
+  const current = pendingPluginUpdates(profile)
+  const remaining = current.filter(target => target.packageName !== packageName)
+  if (remaining.length === current.length) return
+  if (!remaining.length) {
+    unlinkSync(join(profile, PENDING_FILE))
+    return
+  }
+  const temporary = join(profile, `${PENDING_FILE}.${randomUUID()}.tmp`)
+  try {
+    writeFileSync(temporary, JSON.stringify({ packages: remaining }, null, 2) + '\n', { flag: 'wx', mode: 0o600 })
+    renameSync(temporary, join(profile, PENDING_FILE))
+  } finally {
+    try { unlinkSync(temporary) }
+    catch (error) { if (error.code !== 'ENOENT') throw error }
+  }
+}
+
 /** Require both the on-disk version and the active bundle entry, not just a declared dependency. */
 export function pluginUpdateInstalled(profile, target) {
   let manifest
@@ -43,7 +73,7 @@ export function pluginUpdateInstalled(profile, target) {
 export function backupPluginUpdate(profile, backupRoot) {
   mkdirSync(backupRoot, { recursive: true })
   const folder = mkdtempSync(join(backupRoot, 'plugin-update-'))
-  for (const file of ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', PENDING_FILE]) {
+  for (const file of ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', PENDING_FILE, MARKET_OPERATIONS_FILE]) {
     try { copyFileSync(join(profile, file), join(folder, file)) }
     catch (error) { if (error.code !== 'ENOENT') throw error }
   }
@@ -107,6 +137,8 @@ export function preparePluginRollback(profile, backupRoot) {
   // Archive the request first. If recovery is interrupted, it remains available for retry.
   try { copyFileSync(join(profile, PENDING_FILE), join(state.backup, 'failed-pending-updates.json')) }
   catch (error) { if (error.code !== 'ENOENT') throw error }
+  try { copyFileSync(join(profile, MARKET_OPERATIONS_FILE), join(state.backup, 'failed-market-operations.json')) }
+  catch (error) { if (error.code !== 'ENOENT') throw error }
   for (const file of ['pnpm-lock.yaml', 'pnpm-workspace.yaml']) {
     try { copyFileSync(join(state.backup, file), join(profile, file)) }
     catch (error) { if (error.code !== 'ENOENT') throw error }
@@ -133,6 +165,21 @@ export function completePluginRollback(profile) {
     try { unlinkSync(join(profile, file)) }
     catch (error) { if (error.code !== 'ENOENT') throw error }
   }
+  const operations = readMarketOperations(profile)
+  if (operations.length) {
+    recordMarketResults(profile, operations.map(operation => ({ ...operation, status: 'rolled-back', finishedAt: Date.now(),
+      actualVersion: operation.beforeVersion ?? null, message: '已恢复更新前的插件版本及启用配置。' })))
+    completeMarketOperations(profile, operations)
+  }
+}
+
+/** Clear recovery state only after both verified queues have been consumed. */
+export function completePluginUpdateBatch(profile) {
+  if (hasPendingPluginOperations(profile)) return
+  for (const file of [PENDING_FILE, UPDATE_STATE]) {
+    try { unlinkSync(join(profile, file)) }
+    catch (error) { if (error.code !== 'ENOENT') throw error }
+  }
 }
 
 /** Clear verified entries in the stopped profile, retaining requests for other versions. */
@@ -143,7 +190,9 @@ export function completePluginUpdates(profile, applied) {
   const current = pendingPluginUpdates(profile)
   const remaining = current.filter(target => !applied.some(done => done.packageName === target.packageName && done.version === target.version))
   if (remaining.length === 0) {
-    completePluginRollback(profile)
+    try { unlinkSync(join(profile, PENDING_FILE)) }
+    catch (error) { if (error.code !== 'ENOENT') throw error }
+    completePluginUpdateBatch(profile)
   } else {
     const temporary = join(profile, `${PENDING_FILE}.${process.pid}.tmp`)
     writeFileSync(temporary, JSON.stringify({ packages: remaining }, null, 2) + '\n')

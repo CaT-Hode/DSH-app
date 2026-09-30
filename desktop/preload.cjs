@@ -55,7 +55,7 @@ html[data-dsh-desktop-chrome] #root { height: calc(100vh - ${HEIGHT}px) !importa
   --dsh-chrome-muted: #69747c; --dsh-chrome-hover: #e8eff0; --dsh-chrome-width: 240px;
   position: fixed; inset: 0 0 auto; height: ${HEIGHT}px; z-index: 2147483647;
   display: grid; grid-template-columns: var(--dsh-chrome-width) minmax(0, 1fr);
-  color: var(--dsh-chrome-text); font: 12px/1.2 "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+  color: var(--dsh-chrome-text); font: 400 12px/1.5 var(--dsh-app-font, "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif);
   user-select: none; -webkit-app-region: drag;
 }
 #dsh-desktop-chrome * { box-sizing: border-box; }
@@ -324,7 +324,7 @@ function mountDesktopChrome(ipcRenderer) {
     renderCoreUpdate()
   }
   let sidebarObserved
-  let lastScheme
+  let lastTheme
   const sidebarResize = new ResizeObserver(() => syncAppearance())
   const syncAppearance = () => {
     const frame = document.querySelector('[data-shell-overlay]')?.parentElement
@@ -341,6 +341,7 @@ function mountDesktopChrome(ipcRenderer) {
       bar.dataset.compact = String(width < 170)
     }
     const scheme = getComputedStyle(document.documentElement).colorScheme.includes('dark') ? 'dark' : 'light'
+    const source = document.documentElement.getAttribute('data-ds-theme-source')
     document.documentElement.dataset.dshDesktopTheme = scheme
     const theme = getComputedStyle(document.body)
     const color = theme.getPropertyValue('--dsh-app-surface').trim() || theme.getPropertyValue('--dsw-alias-bg-base').trim() || theme.backgroundColor
@@ -349,7 +350,10 @@ function mountDesktopChrome(ipcRenderer) {
       const value = theme.getPropertyValue(source).trim()
       if (value) bar.style.setProperty(`--dsh-chrome-${target}`, value)
     }
-    if (scheme !== lastScheme) { lastScheme = scheme; ipcRenderer.send('dsh:desktop-theme', scheme) }
+    if (['system', 'light', 'dark'].includes(source) && (scheme !== lastTheme?.scheme || source !== lastTheme?.source)) {
+      lastTheme = { source, scheme }
+      ipcRenderer.send('dsh:desktop-theme', lastTheme)
+    }
   }
   let syncQueued = false
   const scheduleSync = () => {
@@ -357,6 +361,7 @@ function mountDesktopChrome(ipcRenderer) {
     syncQueued = true
     requestAnimationFrame(() => { syncQueued = false; updateNavigation(); syncAppearance() })
   }
+  window.addEventListener('dsh-app:theme-state', scheduleSync)
   new MutationObserver(scheduleSync).observe(document.getElementById('root') ?? document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-selected'] })
   const restoreChromeAccess = () => {
     scheduleSync()
@@ -368,7 +373,7 @@ function mountDesktopChrome(ipcRenderer) {
   new MutationObserver(restoreChromeAccess).observe(bar, {
     attributes: true, attributeFilter: ['inert'],
   })
-  new MutationObserver(() => { updateLocale(); scheduleSync() }).observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'class', 'style', 'data-theme', 'data-dsh-app-actions'] })
+  new MutationObserver(() => { updateLocale(); scheduleSync() }).observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'class', 'style', 'data-theme', 'data-dsh-app-actions', 'data-ds-theme-source'] })
   document.addEventListener('click', () => setTimeout(scheduleSync, 60), true)
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', scheduleSync)
   updateLocale()

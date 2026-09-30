@@ -166,9 +166,13 @@ test('embedded cost settings notify the same-origin sidebar after saving and kee
       addEventListener(name, listener) { this.listeners[name] = listener }
       setAttribute() {}
     }
-    const nodes = new Map()
+    const html = readFileSync(new URL('../lib/cost-meter.html', import.meta.url), 'utf8')
+    const nodes = new Map([...html.matchAll(/<([a-z]+)\b[^>]*\bid="([^"]+)"[^>]*>/g)].map(match => [match[2], new Element(match[1])]))
+    const selectedPeriod = /<select id="usage-period">[\s\S]*?<option value="([^"]+)" selected/.exec(html)
+    assert.ok(selectedPeriod, 'the current period selector declares its initial selection')
+    nodes.get('usage-period').value = selectedPeriod[1]
     const node = id => {
-      if (!nodes.has(id)) nodes.set(id, new Element(id === 'price-route' ? 'select' : 'div'))
+      assert.ok(nodes.has(id), `the rendered cost document contains ${id}`)
       return nodes.get(id)
     }
     const back = new Element('a'), notifications = []
@@ -189,7 +193,11 @@ test('embedded cost settings notify the same-origin sidebar after saving and kee
     await new Promise(resolve => setImmediate(resolve))
     assert.equal(document.documentElement.lang, 'zh-CN')
     assert.equal(back.hidden, true)
-    assert.equal(node('today').textContent, '未计价')
+    assert.equal(node('usage-cost').textContent, '未计价')
+    assert.equal(node('usage-tokens').textContent, '15')
+    assert.equal(node('usage-calls').textContent, '1')
+    assert.match(node('usage-cost-detail').textContent, /1 次调用没有可用价格/)
+    assert.equal(node('days').children[0].children[5].textContent, '未计价')
     assert.equal(node('balances').children[0].children[1].textContent, '23.4500')
     assert.match(node('balance-status').textContent, /账户余额可用/)
     node('currency').value = 'CNY'
@@ -205,7 +213,8 @@ test('embedded cost settings notify the same-origin sidebar after saving and kee
     await node('pricing').listeners.submit({ preventDefault() {} })
     assert.equal(notifications.length, 2)
     assert.equal(ledger.summary().routes[0].price.cacheWrite, 1.25)
-    assert.equal(node('today').textContent, '未计价')
+    assert.equal(node('usage-cost').textContent, '未计价')
+    assert.equal(node('days').children[0].children[5].textContent, '未计价')
     node('refresh-balance').listeners.click()
     await new Promise(resolve => setImmediate(resolve))
     assert.equal(notifications[2].message.type, 'dsh-app:balance-changed')

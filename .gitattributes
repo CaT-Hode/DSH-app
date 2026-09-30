@@ -6,3 +6,10 @@
 *.svg text eol=lf
 *.png binary
 *.ico binary
+
+# Preserve original lazy bundles and license bytes for upstream hash verification.
+lib/sidebar/upstream/client-*.js -text
+lib/sidebar/upstream/LICENSE -text
+# Published bundles contain intentional trailing spaces, including template strings.
+lib/sidebar/upstream/client-editor.js whitespace=-blank-at-eol
+lib/sidebar/upstream/client-mermaid.js whitespace=-blank-at-eol

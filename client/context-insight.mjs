@@ -5,6 +5,7 @@ export default function createContextInsightClient(require) {
   const dictionaries = {
     zh: {
       title: '上下文与活动', summary: '上下文', noSession: '选择一条对话查看上下文与活动',
+      selectedSession: '当前会话 · 上下文与活动', unifiedUsage: '费用与用量',
       pending: '正在读取当前对话…', unknown: '尚无用量报告', noRequests: '还没有模型请求',
       used: '预计下一次请求', capacity: '上下文容量', utilization: '利用率', unknownCapacity: '容量未提供',
       estimate: '估算', exactPrompt: '最近请求输入', usage: '累计 Token', input: '输入', output: '输出',
@@ -27,6 +28,7 @@ export default function createContextInsightClient(require) {
     },
     en: {
       title: 'Context and activity', summary: 'Context', noSession: 'Select a conversation to inspect context and activity',
+      selectedSession: 'Current conversation · context and activity', unifiedUsage: 'Cost and usage',
       pending: 'Reading the selected conversation…', unknown: 'No usage reported yet', noRequests: 'No model requests yet',
       used: 'Projected next request', capacity: 'Context capacity', utilization: 'Utilization', unknownCapacity: 'Capacity unavailable',
       estimate: 'Estimated', exactPrompt: 'Latest request input', usage: 'Cumulative tokens', input: 'Input', output: 'Output',
@@ -50,6 +52,7 @@ export default function createContextInsightClient(require) {
   }
   const styles = `
 .dsh-app-context{min-width:0;color:var(--dsh-app-text);padding:18px 22px;overflow:auto;height:100%;box-sizing:border-box;font-size:13px;line-height:1.5}
+.dsh-app-context.is-embedded{height:auto;overflow:visible;padding:0;margin:24px 0}.dsh-app-context.is-embedded .dsh-app-context-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
 .dsh-app-context h2,.dsh-app-context h3,.dsh-app-context p{margin:0}.dsh-app-context h2{font-size:17px}.dsh-app-context h3{font-size:14px}
 .dsh-app-context-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}.dsh-app-context-route{font-size:12px;color:var(--dsh-app-muted);overflow-wrap:anywhere;text-align:right}
 .dsh-app-context-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}.dsh-app-context-card,.dsh-app-context-section{border:1px solid var(--dsh-app-border);border-radius:13px;background:var(--dsh-app-surface)}
@@ -96,23 +99,24 @@ export default function createContextInsightClient(require) {
         h('title', {}, `${dateTime(row.time)} · ${row.prompt === undefined ? '~' : ''}${format(values[index])} Token`))))
   }
   /** Render the selected session's context, requests, tools, compactions and recent activity. */
-  function ContextInsight({ sessionId, useProjection, t }) {
+  function ContextInsight({ sessionId, useProjection, t, embedded = false }) {
     const data = useData(useProjection)
-    if (!sessionId) return h('section', { className: 'dsh-app-context' }, h('p', { className: 'dsh-app-context-empty' }, t('noSession')))
+    const className = `dsh-app-context${embedded ? ' is-embedded' : ''}`
+    if (!sessionId) return h('section', { className }, h('p', { className: 'dsh-app-context-empty' }, t('noSession')))
     const { insight, usage, used, capacity, percent, pressure, anchored } = data
-    if (!insight) return h('section', { className: 'dsh-app-context' }, h('p', { className: 'dsh-app-context-empty', role: 'status' }, t('pending')))
+    if (!insight) return h('section', { className }, h('p', { className: 'dsh-app-context-empty', role: 'status' }, t('pending')))
     const billed = usage ? usage.uncachedInputTokens + usage.cacheReadTokens + usage.cacheWriteTokens + usage.outputTokens : undefined
     const composition = insight.composition
     const compositionTotal = totalOf(composition)
     const sections = (key, children, detail) => h('section', { className: 'dsh-app-context-section' },
       h('div', { className: 'dsh-app-context-section-head' }, h('h3', {}, t(key)), detail ? h('small', { className: 'dsh-app-context-note' }, detail) : null), ...children)
     const seconds = value => t('seconds', { value: new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value / 1000) })
-    return h('section', { className: 'dsh-app-context', 'aria-label': t('title') },
-      h('header', { className: 'dsh-app-context-head' }, h('h2', {}, t('title')), h('span', { className: 'dsh-app-context-route' }, [insight.route.provider, insight.route.model].filter(Boolean).join(' / '))),
+    return h('section', { className, 'aria-label': t(embedded ? 'selectedSession' : 'title') },
+      h('header', { className: 'dsh-app-context-head' }, h('h2', {}, t(embedded ? 'selectedSession' : 'title')), h('span', { className: 'dsh-app-context-route' }, [insight.route.provider, insight.route.model].filter(Boolean).join(' / '))),
       h('div', { className: 'dsh-app-context-cards' },
         h(Card, { name: t('used'), value: `~${compact(used)}`, detail: capacity ? `${t('capacity')} ${compact(capacity)} · ${t('utilization')} ${percent}%` : t('unknownCapacity') }),
-        h(Card, { name: t('usage'), value: billed === undefined ? '—' : compact(billed), detail: billed === undefined ? t('unknown') : `${t('input')} ${compact(usage.uncachedInputTokens)} · ${t('output')} ${compact(usage.outputTokens)}` }),
-        h(Card, { name: t('requests'), value: format(insight.totals.requests), detail: `${t('inputs')} ${format(insight.totals.inputs)} · ${t('attempts')} ${format(insight.totals.attempts)}` }),
+        !embedded ? h(Card, { name: t('usage'), value: billed === undefined ? '—' : compact(billed), detail: billed === undefined ? t('unknown') : `${t('input')} ${compact(usage.uncachedInputTokens)} · ${t('output')} ${compact(usage.outputTokens)}` }) : null,
+        !embedded ? h(Card, { name: t('requests'), value: format(insight.totals.requests), detail: `${t('inputs')} ${format(insight.totals.inputs)} · ${t('attempts')} ${format(insight.totals.attempts)}` }) : null,
         h(Card, { name: t('tools'), value: format(insight.totals.toolCalls), detail: `${t('compactions')} ${format(insight.totals.compactions)} · ${t('prunes')} ${format(insight.totals.prunes)}` })),
       pressure?.pressureTokens !== undefined ? h('p', { className: 'dsh-app-context-note' }, `${t('exactPrompt')} ${format(pressure.pressureTokens)} Token`) : null,
       h('p', { className: 'dsh-app-context-note' }, t(anchored ? 'pressureNote' : 'estimateNote')),

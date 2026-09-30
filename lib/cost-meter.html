@@ -5,43 +5,52 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cost and usage — DSH</title>
   <style>
-    :root{color-scheme:dark;font:14px/1.5 system-ui,"Microsoft YaHei",sans-serif;background:#15171b;color:#e5e7eb}
+    :root{color-scheme:dark;font:400 14px/1.5 var(--dsh-app-font,"Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif);background:var(--dsh-app-surface,#15171b);color:var(--dsh-app-text,#e5e7eb)}
     *{box-sizing:border-box}body{margin:0}html[data-dsh-desktop-chrome] body{padding-top:38px}main{max-width:1120px;margin:0 auto;padding:28px 32px 50px}
-    header{display:flex;align-items:center;gap:18px;margin-bottom:26px}h1{font-size:24px;margin:0;font-weight:650}h2{font-size:16px;margin:0 0 12px}
-    a{color:#9db7ff;text-decoration:none}a:hover{text-decoration:underline}.muted{color:#9199a7}.spacer{flex:1}
-    .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.card,.panel{background:#202329;border:1px solid #333943;border-radius:12px;padding:18px}
-    .label{color:#aab1bf;font-size:13px}.amount{font-size:30px;font-weight:660;font-variant-numeric:tabular-nums;margin:6px 0}.detail{color:#9aa3b2;font-size:12px}
+    header{display:flex;align-items:center;gap:18px;margin-bottom:26px}h1{font-size:22px;margin:0;font-weight:600}h2{font-size:16px;margin:0 0 12px;font-weight:600}
+    a{color:var(--dsh-app-text,#9db7ff);text-decoration:none}a:hover{text-decoration:underline}.muted{color:var(--dsh-app-muted,#9199a7)}.spacer{flex:1}
+    .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.card,.panel{background:var(--dsh-app-surface,#202329);border:1px solid var(--dsh-app-border,#333943);border-radius:12px;padding:18px}
+    .label{color:var(--dsh-app-muted,#aab1bf);font-size:13px}.amount{font-size:28px;font-weight:600;font-variant-numeric:tabular-nums;margin:6px 0}.detail{color:var(--dsh-app-muted,#9aa3b2);font-size:12px}
     .grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(270px,1fr);gap:14px;margin-top:14px}.panel{min-width:0}
-    .bar{height:8px;background:#343a44;border-radius:8px;overflow:hidden;margin:10px 0}.fill{height:100%;background:#6f91fa;border-radius:8px;max-width:100%}
-    table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}th,td{padding:10px 8px;border-bottom:1px solid #353a43;text-align:right}th:first-child,td:first-child{text-align:left}th{color:#9fa8b6;font-weight:500;font-size:12px}
-    input,select,button{background:#2a2f38;color:#e6e9ef;border:1px solid #484f5b;border-radius:7px;padding:7px 10px;font:inherit}
-    button{cursor:pointer}button:hover{background:#3a4251}input[type=number]{width:110px}label{display:flex;align-items:center;gap:8px;margin:10px 0}.notice{min-height:21px;color:#a6baff}
+    .bar{height:8px;background:var(--dsh-app-hover,#343a44);border-radius:8px;overflow:hidden;margin:10px 0}.fill{height:100%;background:var(--dsh-app-text,#6f91fa);border-radius:8px;max-width:100%}
+    table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}th,td{padding:10px 8px;border-bottom:1px solid var(--dsh-app-border,#353a43);text-align:right}th:first-child,td:first-child{text-align:left}th{color:var(--dsh-app-muted,#9fa8b6);font-weight:500;font-size:12px}
+    input,select,button{background:var(--dsh-app-hover,#2a2f38);color:var(--dsh-app-text,#e6e9ef);border:1px solid var(--dsh-app-border,#484f5b);border-radius:7px;padding:7px 10px;font:inherit}
+    button{cursor:pointer}button:hover{filter:brightness(1.15)}input[type=number]{width:110px}label{display:flex;align-items:center;gap:8px;margin:10px 0}.notice{min-height:21px;color:var(--dsh-app-warning,#a6baff)}
     #price-route{min-width:0;max-width:100%;flex:1}td:first-child{overflow-wrap:anywhere}.amount{overflow-wrap:anywhere}
     .balance{margin-top:14px}.balance-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.balance-heading h2{margin:0}.balance .notice{margin-top:12px}button:disabled{opacity:.55;cursor:wait}
+    .scope{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}.scope label{margin:0}.scope>span{font-size:13px;color:var(--dsh-app-muted,#9199a7)}
+    details{margin-top:18px}summary{cursor:pointer;font-size:15px;font-weight:600;padding:12px 0}#session-insight:empty{display:none}#session-insight{margin-top:20px}
+    html[data-dsh-app-embedded="true"] main{max-width:none;padding:18px 22px 36px}html[data-dsh-app-embedded="true"] main>header{display:none}
   </style>
 </head>
 <body>
 <main>
-  <header><h1 data-i18n="title"></h1><span class="muted" data-i18n="subtitle"></span><span class="spacer"></span><button type="button" id="refresh" data-i18n="refresh"></button><a href="/" data-i18n="back"></a></header>
+  <header><h1 data-i18n="title"></h1><span class="spacer"></span><a href="/" data-i18n="back"></a></header>
+  <div class="scope"><span data-i18n="allSessions"></span><label><span data-i18n="period"></span><select id="usage-period"><option value="today" data-i18n="today"></option><option value="month" selected data-i18n="month"></option><option value="all" data-i18n="all"></option></select><button type="button" id="refresh" data-i18n="refresh"></button></label></div>
   <div id="status" class="notice" role="status" data-i18n="loading"></div>
   <section class="cards" data-i18n-aria="overview">
-    <div class="card"><div class="label" data-i18n="today"></div><div class="amount" id="today">—</div><div class="detail" id="today-detail"></div></div>
-    <div class="card"><div class="label" data-i18n="month"></div><div class="amount" id="month">—</div><div class="detail" id="month-detail"></div></div>
-    <div class="card"><div class="label" data-i18n="all"></div><div class="amount" id="all">—</div><div class="detail" id="all-detail"></div></div>
+    <div class="card"><div class="label" data-i18n="cost"></div><div class="amount" id="usage-cost">—</div><div class="detail" id="usage-cost-detail"></div></div>
+    <div class="card"><div class="label" data-i18n="tokens"></div><div class="amount" id="usage-tokens">—</div><div class="detail" id="usage-token-detail"></div></div>
+    <div class="card"><div class="label" data-i18n="calls"></div><div class="amount" id="usage-calls">—</div><div class="detail" data-i18n="usageScope"></div></div>
   </section>
+  <div id="budget-overview"><p class="label"><span id="budget-scope"></span> · <span id="budget-label"></span></p><div class="bar"><div class="fill" id="budget-fill"></div></div></div>
   <section class="panel balance"><div class="balance-heading"><h2 data-i18n="balanceTitle"></h2><button type="button" id="refresh-balance" data-i18n="balanceRefresh"></button></div>
     <p id="balance-status" class="notice" role="status" data-i18n="balanceLoading"></p>
     <table><thead><tr><th data-i18n="currency"></th><th data-i18n="balanceTotal"></th><th data-i18n="balanceGranted"></th><th data-i18n="balanceTopup"></th></tr></thead><tbody id="balances"></tbody></table>
     <p class="detail" data-i18n="balanceNote"></p></section>
-  <div class="grid">
+  <div id="session-insight"></div>
+  <details><summary data-i18n="details"></summary><div class="grid">
     <section class="panel"><h2 data-i18n="daily"></h2><table><thead><tr><th data-i18n="date"></th><th data-i18n="calls"></th><th data-i18n="input"></th><th data-i18n="cache"></th><th data-i18n="output"></th><th data-i18n="cost"></th></tr></thead><tbody id="days"></tbody></table></section>
-    <section class="panel"><h2 data-i18n="budgetAndDisplay"></h2><div class="label" id="budget-label"></div><div class="bar"><div class="fill" id="budget-fill"></div></div>
+    <section class="panel"><h2 data-i18n="modelCosts"></h2><table><thead><tr><th data-i18n="model"></th><th data-i18n="calls"></th><th data-i18n="cost"></th></tr></thead><tbody id="models"></tbody></table></section>
+    <section class="panel"><h2 data-i18n="todaySessions"></h2><table><thead><tr><th data-i18n="session"></th><th data-i18n="calls"></th><th data-i18n="cost"></th></tr></thead><tbody id="sessions"></tbody></table></section>
+    <section class="panel"><h2 data-i18n="historyTitle"></h2><p id="history" class="muted"></p><p class="detail" data-i18n="historyNote"></p></section>
+  </div></details>
+  <details><summary data-i18n="budgetAndDisplay"></summary><div class="grid">
+    <section class="panel"><h2 data-i18n="budgetAndDisplay"></h2>
       <form id="settings"><label><input type="checkbox" id="budget-enabled"> <span data-i18n="enableBudget"></span></label><label><span data-i18n="period"></span> <select id="budget-period"><option value="day" data-i18n="everyDay"></option><option value="month" data-i18n="everyMonth"></option></select></label>
         <label><span data-i18n="budgetAmount"></span> <input type="number" id="budget-amount" min="0" step="0.01"></label><label><span data-i18n="currency"></span> <select id="currency"><option value="USD">USD</option><option value="CNY">CNY</option></select></label>
         <label><span data-i18n="exchangeRate"></span> <input type="number" id="exchange-rate" min="0.0001" step="0.0001"></label><button type="submit" data-i18n="save"></button></form>
       <p class="detail" data-i18n="estimateNote"></p></section>
-    <section class="panel"><h2 data-i18n="modelCosts"></h2><table><thead><tr><th data-i18n="model"></th><th data-i18n="calls"></th><th data-i18n="cost"></th></tr></thead><tbody id="models"></tbody></table></section>
-    <section class="panel"><h2 data-i18n="todaySessions"></h2><table><thead><tr><th data-i18n="session"></th><th data-i18n="calls"></th><th data-i18n="cost"></th></tr></thead><tbody id="sessions"></tbody></table></section>
     <section class="panel"><h2 data-i18n="routePricing"></h2><p class="detail" data-i18n="priceNote"></p>
       <form id="pricing"><label><span data-i18n="route"></span> <select id="price-route"></select></label>
         <label><span data-i18n="uncachedPrice"></span> <input id="price-input" type="number" min="0" step="any" required></label>
@@ -49,8 +58,7 @@
         <label><span data-i18n="cacheWritePrice"></span> <input id="price-write" type="number" min="0" step="any" required></label>
         <label><span data-i18n="outputPrice"></span> <input id="price-output" type="number" min="0" step="any" required></label>
         <button type="submit" id="save-price" data-i18n="savePrice"></button></form><p id="price-status" class="detail"></p></section>
-    <section class="panel"><h2 data-i18n="historyTitle"></h2><p id="history" class="muted"></p><p class="detail" data-i18n="historyNote"></p></section>
-  </div>
+  </div></details>
 </main>
 <script src="/dsh-app/cost-ui.js" defer></script>
 </body>

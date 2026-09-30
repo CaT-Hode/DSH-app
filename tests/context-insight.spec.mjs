@@ -1,11 +1,21 @@
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
+import { join } from 'node:path'
 import test from 'node:test'
 import { createContextInsightProjection } from '../lib/context-insight.mjs'
 import createContextInsightClient from '../client/context-insight.mjs'
 
-// DSH owns these versioned exports. Source-only checks select the installed CLI explicitly.
-const runtime = createRequire(process.env.DSH_CORE_CLI || import.meta.url)
+// DSH's release owns its schemas and surface rules; dev dependency overrides do not select them.
+const ownRequire = createRequire(import.meta.url)
+let runtimeEntry = process.env.DSH_APP_TEST_CORE_ROOT ? join(process.env.DSH_APP_TEST_CORE_ROOT, 'package.json') : process.env.DSH_CORE_CLI
+if (!runtimeEntry) {
+  try { runtimeEntry = ownRequire.resolve('@deepseek-ai/dsh/package.json') }
+  catch (error) {
+    if (error.code !== 'MODULE_NOT_FOUND') throw error
+    throw new Error('Set DSH_APP_TEST_CORE_ROOT to an installed DSH runtime for the context integration check; DSH_APP_TEST_DEPENDENCY_ROOT selects only development dependencies', { cause: error })
+  }
+}
+const runtime = createRequire(runtimeEntry)
 const { z } = runtime('zod')
 const sessionExports = runtime('@deepseek-ai/dsh-session')
 const estimator = runtime('@deepseek-ai/dsh-token-meter/estimate')
@@ -140,5 +150,11 @@ test('frontend reads only the current session projections and marks heuristic fi
   assert.match(html, /请求与上下文变化/)
   assert.doesNotMatch(html, /private prompt|private response/)
   assert.deepEqual(queried, ['contextPressure', 'contextBreakdown', 'tokenUsage', 'dshAppContext'])
+  const embedded = JSON.stringify(ContextInsight({ sessionId: 'current', useProjection, t, embedded: true }))
+  assert.match(embedded, /当前会话 · 上下文与活动/)
+  assert.match(embedded, /is-embedded/)
+  assert.match(embedded, /62%/)
+  assert.doesNotMatch(embedded, /累计 Token|"name":"模型请求"/)
+  assert.match(embedded, /工具统计|最近活动/)
   assert.match(JSON.stringify(ContextSummary({ sessionId: 'current', useProjection, t })), /62%/)
 })

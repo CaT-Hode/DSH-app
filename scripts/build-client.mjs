@@ -1,14 +1,24 @@
-/** Emit the closure factory consumed by DSH client-modules. */
+/** Emit the shared browser factory and its public sidebar aliases. */
 import { readFileSync, writeFileSync } from 'node:fs'
 
-const source = readFileSync(new URL('../client/plugin.mjs', import.meta.url), 'utf8')
-const css = readFileSync(new URL('../client/style.css', import.meta.url), 'utf8')
-const contextSource = readFileSync(new URL('../client/context-insight.mjs', import.meta.url), 'utf8')
-const contextFactory = contextSource.replace('export default function createContextInsightClient', 'function createContextInsightClient')
-if (contextFactory === contextSource) throw new Error('DSH App context factory entry is missing')
-const linkedSource = source.replace(/^import createContextInsightClient from '\.\/context-insight\.mjs'\r?\n/m, '')
-if (linkedSource === source) throw new Error('DSH App context factory import is missing')
-const factory = linkedSource.replace('export default function createDshAppClient', 'function createDshAppClient')
-if (factory === linkedSource) throw new Error('DSH App client factory entry is missing')
-writeFileSync(new URL('../lib/client.js', import.meta.url), `window.__ModuleLoader__.load({\n  id: 'dsh-app',\n  factory: (require) => {\n${contextFactory}\n${factory}\n    return createDshAppClient(require, ${JSON.stringify(css)});\n  },\n});\n`)
+const read = path => readFileSync(new URL(path, import.meta.url), 'utf8')
+const factory = (path, name) => {
+  const source = read(path).replace(/^import .*\r?\n/gm, '')
+  const linked = source.replace(`export default function ${name}`, `function ${name}`).replaceAll('export function ', 'function ')
+  if (linked === source) throw new Error(`Missing factory ${name}`)
+  return linked
+}
+const factories = [
+  factory('../client/context-insight.mjs', 'createContextInsightClient'),
+  factory('../client/skills.mjs', 'createSkillsClient'),
+  factory('../client/mcp.mjs', 'createMcpClient'),
+  factory('../client/theme-sync.mjs', 'createThemeSyncClient'),
+  factory('../lib/sidebar/upstream/client-factory.mjs', 'createOwnedSidebarEngine'),
+  factory('../client/sidebar-bridge.mjs', 'createSidebarBridge'),
+  factory('../client/plugin-pages.mjs', 'createPluginPagesClient'),
+  factory('../client/plugin.mjs', 'createDshAppClient'),
+].join('\n')
+const bridge = factory('../client/sidebar-bridge.mjs', 'createSidebarBridge')
+const css = read('../client/style.css') + '\n' + read('../client/mcp.css') + '\n' + read('../client/plugin-pages.css')
+writeFileSync(new URL('../lib/client.js', import.meta.url), `(function () {\n${bridge}\nregisterSidebarAliases(window.__ModuleLoader__);\nwindow.__ModuleLoader__.load({\n  id: 'dsh-app',\n  factory: (require) => {\n${factories}\n    return createDshAppClient(require, ${JSON.stringify(css)});\n  },\n});\n})();\n`)
 process.stdout.write('Built DSH App client bundle\n')

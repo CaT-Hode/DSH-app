@@ -1,12 +1,19 @@
 import createContextInsightClient from './context-insight.mjs'
+import createPluginPagesClient from './plugin-pages.mjs'
+import createMcpClient from './mcp.mjs'
+import createThemeSyncClient from './theme-sync.mjs'
+import createSidebarBridge from './sidebar-bridge.mjs'
 
 /** Build the browser half against DSH's shared module table, without bundling React. */
 export default function createDshAppClient(require, css) {
   const React = require('react')
   const { createPortal } = require('react-dom')
-  const { createElement: h, cloneElement, Children, useEffect, useMemo, useRef, useState, useSyncExternalStore } = React
+  const { createElement: h, Children, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } = React
   const NS = 'dshApp'
   const contextInsight = createContextInsightClient(require)
+  const pluginPages = createPluginPagesClient(require)
+  const mcpClient = createMcpClient(require)
+  const sidebarBridge = createSidebarBridge(require)
   const dictionaries = {
     zh: {
       brand: 'DeepSeek Harness', home: '聊天', recent: '最近对话', new: '新聊天',
@@ -54,6 +61,7 @@ export default function createDshAppClient(require, css) {
     close: ['m6 6 12 12', 'M6 18 18 6'],
     back: ['m14 5-7 7 7 7', 'M7 12h14'],
     puzzle: ['M8 3h3a2 2 0 1 1 4 0h4v5a2 2 0 1 1 0 4v7h-5a2 2 0 1 0-4 0H3v-5a2 2 0 1 0 0-4V3h5'],
+    settings: ['M9.5 3h5l.7 2.4 2.1 1.2 2.5-.6 2.5 4.3-1.8 1.8v2.4l1.8 1.8-2.5 4.3-2.5-.6-2.1 1.2-.7 2.4h-5l-.7-2.4-2.1-1.2-2.5.6L1.7 16.3l1.8-1.8v-2.4L1.7 10.3 4.2 6l2.5.6 2.1-1.2Z', 'circle:12,13.3,3'],
   }
   function Icon({ name, size = 20 }) {
     return h('svg', { viewBox: '0 0 24 24', width: size, height: size, fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
@@ -65,11 +73,7 @@ export default function createDshAppClient(require, css) {
     return h('button', { type: 'button', title: label, 'aria-label': label, onClick, className: `dsh-app-button ${active ? 'is-active' : ''} ${className}`, ...props },
       icon ? h(Icon, { name: icon }) : null, children)
   }
-  function McpRailEntry({ actions, useStore, t }) {
-    const open = useStore(state => state.open)
-    return h(Button, { label: t('mcp'), icon: 'puzzle', active: open, onClick: () => actions.open(), 'aria-expanded': open, 'data-dsh-app-action': 'connector' })
-  }
-  let inlineSnapshot = { settings: null, mcp: null, modal: false }
+  let inlineSnapshot = { settings: null }
   const inlineListeners = new Set()
   const inlineActions = new Map()
   const inlineWanted = new Set()
@@ -92,112 +96,66 @@ export default function createDshAppClient(require, css) {
       h('div', { ref: targetRef, className: 'dsh-app-inline-target' }))
   }
   function InlineSettings({ rows, renderSlot, activeId, onSelect, onClose }) {
+    rows = rows.filter(row => !/^(skills?|skill-center)$/i.test(row.id))
     const active = rows.find(row => row.id === activeId)?.id ?? rows[0]?.id
     return h('div', { className: 'dsh-app-settings-page' },
-      h('nav', { className: 'dsh-app-settings-nav' }, h('div', { className: 'dsh-app-settings-brand' }, renderSlot('settings.header', {})),
+      h('nav', { className: 'dsh-app-settings-nav' },
         rows.map(row => h('button', { key: row.id, type: 'button', 'aria-current': row.id === active ? 'page' : undefined, onClick: () => onSelect(row.id) }, row.label))),
       h('div', { className: 'dsh-app-settings-body' }, h('div', { className: 'dsh-app-settings-actions' }, renderSlot('settings.action', {})),
         h('div', { className: 'dsh-app-settings-options' }, active !== undefined ? renderSlot('settings.section', { close: onClose }, { only: active }) : null)))
   }
-  /** Replace only the two owners' modal presentation; stores, hooks and slot authorization stay theirs. */
+  const embeddedTypography = `body{font-family:var(--dsh-app-font);font-size:var(--dsh-app-ui-font-size,14px);line-height:1.55}body :where(button,input,select,textarea){font-family:inherit}:where(code,pre,kbd,samp){font-family:var(--dsh-app-code-font)}`
+  /** Keep the official settings controller and authorized slots inside the main pane. */
   function installInlinePanels(ctx) {
-    const owners = new Map()
-    const closeOwnPanel = name => {
-      if (ctx.layout.panelInfo.getSnapshot().activePanelId === `dsh-app-${name}`) ctx.layout.selectPanel(null)
-    }
-    const publishComponentChange = (slot, entry) => {
-      if (!ctx.slots.entries(slot).includes(entry)) return
-      // Component decoration retains its child authorization. A non-winning, immediately
-      // disposed registration publishes the change through the registry's public version source.
-      const priority = Math.max(...ctx.slots.entries(slot).map(value => value.options.priority ?? 0)) + 1
-      ctx.slots.register({ name: slot, id: entry.options.id, priority }, () => null)()
-    }
-    const openPluginMarket = fallback => {
-      const panel = ctx.slots.entriesOfSlot('sidebar.panellist').find(entry => /plugin|插件/i.test(typeof entry.options.label === 'function' ? entry.options.label() : entry.options.label ?? ''))
-      if (panel) { inlineActions.get('mcp')?.close(); ctx.layout.selectPanel(panel.options.id); return }
-      const section = ctx.slots.entriesOfSlot('settings.section').find(entry => /plugin|插件/i.test(typeof entry.options.label === 'function' ? entry.options.label() : entry.options.label ?? ''))
-      if (section) { inlineActions.get('mcp')?.close(); inlineActions.get('settings')?.openSection(section.options.id); return }
-      fallback()
-    }
-    const adaptMarketLink = node => {
-      if (!React.isValidElement(node)) return node
-      if (node.type === 'button' && Children.toArray(node.props.children).join('') === '查看更新方式') return cloneElement(node, { onClick: () => openPluginMarket(node.props.onClick) })
-      return node.props.children === undefined ? node : cloneElement(node, {}, Children.map(node.props.children, adaptMarketLink))
-    }
-    const install = (slot, name, id) => {
-      const entry = ctx.slots.entriesOfSlot(slot).find(value => id === undefined || value.options.id === id)
-      const previous = owners.get(name)
-      if (entry === previous?.entry) return
-      previous?.restore()
-      owners.delete(name)
-      if (!entry) return
-      const original = entry.component
-      function InlineOwner(props) {
-        const snapshot = useSyncExternalStore(inlineSource.subscribe, inlineSource.getSnapshot, inlineSource.getSnapshot)
-        const target = snapshot[name]
-        const open = props.useStore(state => state.open)
-        const wasOpen = useRef(open)
-        const previousMcp = useRef(null)
-        const actions = useMemo(() => ({ ...props.actions, close: () => { props.actions.close(); closeOwnPanel(name) } }), [props.actions])
-        useEffect(() => {
-          inlineActions.set(name, props.actions)
-          if (inlineWanted.has(name)) props.actions.open()
-          return () => { if (inlineActions.get(name) === props.actions) inlineActions.delete(name) }
-        }, [props.actions])
-        useEffect(() => {
-          if (open) ctx.layout.selectPanel(`dsh-app-${name}`)
-          else if (wasOpen.current) closeOwnPanel(name)
-          wasOpen.current = open
-        }, [open])
-        // MCP's modal Escape capture is suspended while another dialog owns focus.
-        // Keep its existing iframe tree mounted; only the original open effects pause.
-        const useStore = name === 'mcp' && snapshot.modal ? select => props.useStore(state => select({ ...state, open: false })) : props.useStore
-        let rendered = original({ ...props, actions, useStore })
-        if (name === 'settings') {
-          const children = Children.toArray(rendered?.props?.children)
-          const panel = children.find(child => typeof child?.props?.renderSlot === 'function' && Array.isArray(child.props.rows) && typeof child.props.onSelect === 'function')
-          const remainder = children.filter(child => child !== panel)
-          return h(React.Fragment, {}, h('div', { hidden: true, 'data-dsh-app-settings-owner': '' }, remainder[0]), ...remainder.slice(1),
-            panel && target ? createPortal(h(InlineSettings, panel.props), target) : null)
-        }
-        if (rendered) previousMcp.current = rendered
-        else if (open && snapshot.modal) rendered = previousMcp.current
-        else previousMcp.current = null
-        if (!rendered || !target) return null
-        const outer = rendered.$$typeof === Symbol.for('react.portal') ? rendered.children : rendered
-        const panel = Children.toArray(outer?.props?.children).find(child => child?.props?.className?.split(' ').includes('mcpConnectorMarketPanel'))
-        if (!panel) throw new Error('The installed MCP connector does not expose its supported panel presentation')
-        return createPortal(cloneElement(adaptMarketLink(panel), { role: 'region', 'aria-modal': undefined, style: { ...panel.props.style, width: '100%', height: '100%', minHeight: 0, borderRadius: 0, boxShadow: 'none' } }), target)
-      }
-      entry.component = InlineOwner
-      owners.set(name, { entry, restore: () => { if (entry.component === InlineOwner) { entry.component = original; publishComponentChange(slot, entry) } } })
-      publishComponentChange(slot, entry)
-    }
-    const syncSettings = () => install('sidebar.settings', 'settings')
-    const syncMcp = () => install('shell.overlay', 'mcp', 'mcp-connector')
-    const stops = [ctx.slots.subscribe('sidebar.settings', syncSettings), ctx.slots.subscribe('shell.overlay', syncMcp)]
-    const syncModal = () => setInlineTarget('modal', [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].some(node => !node.closest('[hidden],[aria-hidden="true"]')))
-    const modalObserver = new MutationObserver(syncModal)
-    modalObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-modal', 'hidden', 'aria-hidden'] })
-    syncModal()
-    syncSettings(); syncMcp()
-    return () => { modalObserver.disconnect(); for (const stop of stops) stop(); for (const owner of owners.values()) owner.restore(); inlineActions.clear(); inlineWanted.clear() }
-  }
-  /** Reuse the MCP plugin's root store and overlay while replacing its launcher only. */
-  function installMcpRail(ctx) {
     let owner
     let restore
-    const sync = () => {
-      const entry = ctx.slots.entries('sidebar.footer.action').find(value => value.options.id === 'mcp-connector' && value.component !== McpRailEntry)
-      if (entry === owner) return
-      restore?.()
-      restore = undefined
-      owner = entry
-      if (entry) restore = ctx.slots.register({ name: 'sidebar.footer.action', id: 'mcp-connector', order: entry.options.order ?? 0, priority: -10, store: entry.store, locale: NS, registrant: 'dsh-app' }, McpRailEntry)
+    let publishing = false
+    const publish = entry => {
+      if (!ctx.slots.entries('sidebar.settings').includes(entry)) return
+      const priority = Math.max(...ctx.slots.entries('sidebar.settings').map(value => value.options.priority ?? 0)) + 1
+      publishing = true
+      try { ctx.slots.register({ name: 'sidebar.settings', id: entry.options.id, priority }, () => null)() }
+      finally { publishing = false }
     }
-    const stop = ctx.slots.subscribe('sidebar.footer.action', sync)
+    const closePanel = () => {
+      if (ctx.layout.panelInfo.getSnapshot().activePanelId === 'dsh-app-settings') ctx.layout.selectPanel(null)
+    }
+    const sync = () => {
+      if (publishing) return
+      const entry = ctx.slots.entriesOfSlot('sidebar.settings')[0]
+      if (entry === owner) return
+      restore?.(); restore = undefined; owner = entry
+      if (!entry) return
+      const original = entry.component
+      function InlineSettingsOwner(props) {
+        const snapshot = useSyncExternalStore(inlineSource.subscribe, inlineSource.getSnapshot, inlineSource.getSnapshot)
+        const open = props.useStore(state => state.open)
+        const wasOpen = useRef(open)
+        const actions = useMemo(() => ({ ...props.actions, close: () => { props.actions.close(); closePanel() } }), [props.actions])
+        useEffect(() => {
+          inlineActions.set('settings', props.actions)
+          if (inlineWanted.has('settings')) props.actions.open()
+          return () => { if (inlineActions.get('settings') === props.actions) inlineActions.delete('settings') }
+        }, [props.actions])
+        useEffect(() => {
+          if (open) ctx.layout.selectPanel('dsh-app-settings')
+          else if (wasOpen.current) closePanel()
+          wasOpen.current = open
+        }, [open])
+        const rendered = original({ ...props, actions })
+        const children = Children.toArray(rendered?.props?.children)
+        const panel = children.find(child => typeof child?.props?.renderSlot === 'function' && Array.isArray(child.props.rows) && typeof child.props.onSelect === 'function')
+        const remainder = children.filter(child => child !== panel)
+        return h(React.Fragment, {}, h('div', { hidden: true, 'data-dsh-app-settings-owner': '' }, remainder[0]), ...remainder.slice(1),
+          panel && snapshot.settings ? createPortal(h(InlineSettings, panel.props), snapshot.settings) : null)
+      }
+      entry.component = InlineSettingsOwner
+      restore = () => { if (entry.component === InlineSettingsOwner) { entry.component = original; publish(entry) } }
+      publish(entry)
+    }
+    const stop = ctx.slots.subscribe('sidebar.settings', sync)
     sync()
-    return () => { stop(); restore?.() }
+    return () => { stop(); restore?.(); inlineActions.clear(); inlineWanted.clear() }
   }
   function money(amount, currency) {
     return new Intl.NumberFormat(undefined, { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: amount < 0.01 && amount > 0 ? 4 : 2 }).format(amount)
@@ -401,10 +359,8 @@ export default function createDshAppClient(require, css) {
     useSyncExternalStore(localeSource.subscribe, localeSource.getSnapshot, localeSource.getSnapshot)
     const list = useSessions(snapshot => snapshot)
     const activePanel = usePanelInfo(snapshot => snapshot.activePanelId)
-    const [menuOpen, setMenuOpen] = useState(false)
     const [searchOpen, setSearchOpen] = useState(false)
     const sidebarRef = useRef(null)
-    const menuRef = useRef(null)
     const portal = useRef(null)
     const featureTimer = useRef(null)
     const sidebarFeatures = useRef(new Set())
@@ -419,11 +375,10 @@ export default function createDshAppClient(require, css) {
             else sidebarFeatures.current.delete(name)
           }
         }
-        const actions = new Set(['new', 'sidebar', 'search', 'cost', 'settings', ...sidebarFeatures.current])
+        const actions = new Set(['new', 'sidebar', 'search', 'cost', 'settings', 'skills', ...sidebarFeatures.current])
         if (document.querySelector('[data-composer-card] .aag-btn')) actions.add('experts')
         if (sidebarRef.current.querySelector('[data-dsh-app-action="connector"]')) actions.add('connector')
         if (panels.some(panel => /plugin|插件/i.test(panel.label))) actions.add('plugins')
-        if (panels.some(panel => /skill|技能/i.test(panel.label))) actions.add('skills')
         const value = [...actions].join(' ')
         if (document.documentElement.dataset.dshAppActions !== value) document.documentElement.dataset.dshAppActions = value
       }
@@ -440,14 +395,6 @@ export default function createDshAppClient(require, css) {
       return () => { portal.current = null; host.remove() }
     }, [])
     useEffect(() => {
-      if (!menuOpen) return
-      const dismiss = event => { if (!menuRef.current?.contains(event.target)) setMenuOpen(false) }
-      const escape = event => { if (event.key === 'Escape') setMenuOpen(false) }
-      document.addEventListener('pointerdown', dismiss)
-      document.addEventListener('keydown', escape)
-      return () => { document.removeEventListener('pointerdown', dismiss); document.removeEventListener('keydown', escape) }
-    }, [menuOpen])
-    useEffect(() => {
       const action = event => {
         const id = event.detail?.action
         if (id === 'new') startSession()
@@ -456,7 +403,9 @@ export default function createDshAppClient(require, css) {
         else if (id === 'home') selectPanel(null)
         else if (id === 'cost') selectPanel('dsh-app-cost')
         else if (id === 'settings') selectPanel('dsh-app-settings')
-        else if (id === 'connector') sidebarRef.current?.querySelector('[data-dsh-app-action="connector"]')?.click()
+        else if (id === 'skills') pluginPages.openPage({ layout: { selectPanel } }, 'skills')
+        else if (id === 'plugins') pluginPages.openPage({ layout: { selectPanel } }, 'plugins')
+        else if (id === 'connector') pluginPages.openPage({ layout: { selectPanel } }, 'mcp')
         else if (id === 'experts') document.querySelector('[data-composer-card] .aag-btn')?.click()
         else if (id === 'schedule' || id === 'im') {
           if (collapsed) toggleSidebar()
@@ -488,25 +437,14 @@ export default function createDshAppClient(require, css) {
       document.addEventListener('keydown', shortcut, true)
       return () => { window.removeEventListener('dsh-app:action', action); document.removeEventListener('keydown', shortcut, true) }
     }, [panels, collapsed, startSession, toggleSidebar, selectPanel])
-    const choose = id => {
-      if (id === 'dsh-app-cost') {
-        document.documentElement.dataset.dshAppUsageTab = 'cost'
-        window.dispatchEvent(new CustomEvent('dsh-app:usage-tab', { detail: { tab: 'cost' } }))
-      }
-      selectPanel(id)
-      setMenuOpen(false)
-    }
-    const primaryPanels = panels.filter(panel => panel.id !== 'dsh-app-cost').slice(0, 3)
+    const choose = id => { if (id === 'plugins') pluginPages.openPage({ layout: { selectPanel } }, 'plugins'); else selectPanel(id) }
+    const primaryPanels = panels.filter(panel => panel.id !== 'dsh-app-cost' && !/skill|技能|mcp/i.test(panel.label))
+      .sort((a, b) => Number(!/automation|自动化|定时任务/i.test(a.label)) - Number(!/automation|自动化|定时任务/i.test(b.label)))
     return h('div', { ref: sidebarRef, className: 'dsh-app-sidebar', 'data-dsh-app-sidebar': '', 'data-collapsed': collapsed || undefined, style: { width } },
       h('nav', { className: 'dsh-app-rail', 'aria-label': t('features') },
         h(Button, { label: t('home'), icon: 'home', active: activePanel === null, onClick: () => choose(null), className: 'dsh-app-rail-home', 'data-dsh-app-action': 'home' }),
-        h(Button, { label: t('recent'), icon: 'recent', onClick: () => setSearchOpen(true) }),
         ...primaryPanels.map(panel => h(Button, { key: panel.id, label: panel.label, active: activePanel === panel.id, onClick: () => choose(panel.id), 'data-dsh-app-panel': panel.id }, renderSlot('sidebar.panellist', { size: 22, active: activePanel === panel.id }, { only: panel.id }))),
-        h('div', { className: 'dsh-app-rail-mcp' }, renderSlot('sidebar.footer.action', { wide: false }, { only: 'mcp-connector' })),
-        h('div', { ref: menuRef, className: 'dsh-app-rail-menu-anchor' }, h(Button, { label: t('more'), icon: 'more', onClick: event => { event.stopPropagation(); setMenuOpen(value => !value) }, 'aria-haspopup': 'menu', 'aria-expanded': menuOpen }),
-          menuOpen ? h('div', { role: 'menu', className: 'dsh-app-feature-menu' }, h('small', {}, t('features')),
-            ...panels.map(panel => h('button', { key: panel.id, type: 'button', role: 'menuitem', onClick: () => choose(panel.id), className: activePanel === panel.id ? 'is-active' : '' }, renderSlot('sidebar.panellist', { size: 18, active: activePanel === panel.id }, { only: panel.id }), h('span', {}, panel.label))),
-            h('hr'), h('button', { type: 'button', role: 'menuitem', onClick: () => choose('dsh-app-settings') }, t('settings'))) : null),
+        h(Button, { label: t('settings'), icon: 'settings', active: activePanel === 'dsh-app-settings', onClick: () => choose('dsh-app-settings'), 'data-dsh-app-action': 'settings' }),
         h('div', { className: 'dsh-app-rail-spacer' }),
         collapsed ? h(CostSummary, { t, wide: false, onOpen: () => choose('dsh-app-cost') }) : null,
         h('div', { className: 'dsh-app-rail-footer' }, footerIds.map(id => h(React.Fragment, { key: id }, renderSlot('sidebar.footer.action', { wide: false }, { only: id })))),
@@ -519,20 +457,60 @@ export default function createDshAppClient(require, css) {
         h('footer', { className: 'dsh-app-sidebar-foot' }, h(CostSummary, { t, wide: true, onOpen: () => choose('dsh-app-cost') }))) : null,
       searchOpen && portal.current ? createPortal(h(SearchDialog, { t, list, search: searchSessions, openSession, onClose: () => setSearchOpen(false) }), portal.current) : null)
   }
-  function CostPanel({ t, selectPanel, renderSlot }) {
-    const [tab, setTab] = useState(document.documentElement.dataset.dshAppUsageTab === 'context' ? 'context' : 'cost')
-    const choose = value => { setTab(value); document.documentElement.dataset.dshAppUsageTab = value }
+  /** Render one scroll document while keeping projections inside the current Session's slot. */
+  function UsageBody({ sessionId, useProjection, t }) {
+    const frameRef = useRef(null)
+    const [target, setTarget] = useState(null)
+    const sheetRef = useRef(null)
+    const bindFrame = useMemo(() => node => { sheetRef.current?.remove(); sheetRef.current = null; frameRef.current = node; setTarget(null) }, [])
+    const sameOrigin = frame => {
+      try { return frame?.contentWindow.location.origin === location.origin }
+      catch (error) {
+        if (error.name === 'SecurityError') return false
+        throw error
+      }
+    }
+    const synchronize = () => {
+      const frame = frameRef.current
+      const doc = frame?.contentDocument
+      if (!doc || !sameOrigin(frame)) return
+      const theme = getComputedStyle(document.body)
+      const root = doc.documentElement
+      root.dataset.dshAppEmbedded = 'true'
+      root.lang = document.documentElement.lang
+      for (const name of ['surface', 'border', 'hover', 'label', 'text', 'warning', 'muted', 'font', 'ui-font-size', 'code-font']) root.style.setProperty(`--dsh-app-${name}`, theme.getPropertyValue(`--dsh-app-${name}`))
+      root.style.colorScheme = theme.colorScheme
+      root.style.backgroundColor = theme.getPropertyValue('--dsh-app-surface')
+      root.style.color = theme.getPropertyValue('--dsh-app-label')
+    }
+    const loaded = () => {
+      const frame = frameRef.current
+      if (!sameOrigin(frame)) return
+      const doc = frame.contentDocument
+      const anchor = doc.getElementById('session-insight')
+      if (!anchor) throw new Error('The cost page is missing its current-session insight mount')
+      sheetRef.current?.remove()
+      const sheet = doc.createElement('style')
+      sheet.dataset.dshAppContextStyle = ''
+      sheet.textContent = `${contextInsight.styles}\n${embeddedTypography}`
+      doc.head.append(sheet)
+      sheetRef.current = sheet
+      synchronize()
+      setTarget(anchor)
+    }
     useEffect(() => {
-      const receive = event => { if (event.detail?.tab === 'context' || event.detail?.tab === 'cost') choose(event.detail.tab) }
-      window.addEventListener('dsh-app:usage-tab', receive)
-      return () => window.removeEventListener('dsh-app:usage-tab', receive)
+      const observer = new MutationObserver(synchronize)
+      observer.observe(document.body, { attributes: true, attributeFilter: ['class', 'style', 'data-theme'] })
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'class', 'style', 'data-theme'] })
+      return () => { observer.disconnect(); sheetRef.current?.remove(); sheetRef.current = null }
     }, [])
+    return h(React.Fragment, {}, h('iframe', { ref: bindFrame, key: t('unifiedUsage'), src: '/dsh-app/cost', title: t('unifiedUsage'), className: 'dsh-app-cost-frame', onLoad: loaded }),
+      target?.isConnected && target.ownerDocument === frameRef.current?.contentDocument ? createPortal(h(contextInsight.ContextInsight, { sessionId, useProjection, t, embedded: true }), target) : null)
+  }
+  function CostPanel({ t, selectPanel, renderSlot }) {
     return h('section', { className: 'dsh-app-cost-panel', 'aria-label': t('cost') },
       h('header', {}, h(Button, { label: t('backToChat'), icon: 'back', onClick: () => selectPanel(null) }),
-        h('div', { className: 'dsh-app-usage-tabs', role: 'tablist', 'aria-label': t('cost') },
-          ...['cost', 'context'].map(value => h('button', { key: value, type: 'button', role: 'tab', 'aria-selected': tab === value, onClick: () => choose(value) }, t(value))))),
-      tab === 'cost' ? h('iframe', { key: t('cost'), src: '/dsh-app/cost', title: t('cost'), className: 'dsh-app-cost-frame' })
-        : h('div', { className: 'dsh-app-usage-context', role: 'tabpanel' }, renderSlot('dsh-app.usage.context', {})))
+        h('strong', {}, t('cost'))), renderSlot('dsh-app.usage.body', {}))
   }
   /** Decorate official frame hooks; no hashed CSS class names or React internals are read. */
   function installFramePresentation() {
@@ -580,18 +558,22 @@ export default function createDshAppClient(require, css) {
       }
     }
   }
-  const inject = ['slots', 'layout', 'uiWorkspace', 'locale', 'sessions']
+  const inject = [...new Set(['slots', 'layout', 'uiWorkspace', 'locale', 'sessions', 'conversation', ...sidebarBridge.inject])]
   /** Claim only the sidebar shell; the official workspace, input and settings plugins retain their logic. */
   function apply(ctx) {
+    sidebarBridge.install(ctx)
+    createThemeSyncClient().install(ctx)
     ctx.effect(() => ctx.locale.register(NS, dictionaries), 'dsh-app: client dictionaries')
     ctx.effect(() => ctx.locale.register(contextInsight.NS, contextInsight.dictionaries), 'dsh-app: context dictionaries')
+    ctx.effect(() => ctx.locale.register(pluginPages.NS, pluginPages.dictionaries), 'dsh-app: plugin page dictionaries')
+    ctx.effect(() => ctx.locale.register(mcpClient.NS, mcpClient.dictionaries), 'dsh-app: MCP dictionaries')
     ctx.effect(() => {
       const sheet = document.createElement('style')
       sheet.dataset.pluginCss = 'dsh-app/client-ui'
-      sheet.textContent = `${css}\n${contextInsight.styles}`
+      sheet.textContent = `${css}\n${contextInsight.styles}\n${pluginPages.styles}`
       document.head.append(sheet)
       document.documentElement.dataset.dshAppUi = 'true'
-      return () => { sheet.remove(); delete document.documentElement.dataset.dshAppUi; delete document.documentElement.dataset.dshAppUsageTab }
+      return () => { sheet.remove(); delete document.documentElement.dataset.dshAppUi }
     }, 'dsh-app: client styles')
     ctx.effect(installFramePresentation, 'dsh-app: frame presentation')
     let panelSnapshot = []
@@ -636,19 +618,17 @@ export default function createDshAppClient(require, css) {
         'sidebar.footer.action': { kind: 'list', scope: 'root' },
       }, inject: injection,
     }, Sidebar))
-    ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'dsh-app-cost', locale: NS, registrant: 'dsh-app', children: { 'dsh-app.usage.context': { kind: 'single', scope: 'session-maybe' } }, inject: () => ({ selectPanel: id => ctx.layout.selectPanel(id) }) }, CostPanel))
-    for (const name of ['settings', 'mcp']) ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: `dsh-app-${name}`, locale: NS, registrant: 'dsh-app', inject: () => ({ name, selectPanel: id => ctx.layout.selectPanel(id) }) }, InlinePanelHost))
-    ctx.slots.inject('dsh-app.usage.context', () => ctx.slots.register({ name: 'dsh-app.usage.context', locale: contextInsight.NS, registrant: 'dsh-app' }, contextInsight.ContextInsight))
+    ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'dsh-app-cost', locale: NS, registrant: 'dsh-app', children: { 'dsh-app.usage.body': { kind: 'single', scope: 'session-maybe' } }, inject: () => ({ selectPanel: id => ctx.layout.selectPanel(id) }) }, CostPanel))
+    ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'dsh-app-settings', locale: NS, registrant: 'dsh-app', inject: () => ({ name: 'settings', selectPanel: id => ctx.layout.selectPanel(id) }) }, InlinePanelHost))
+    ctx.slots.inject('dsh-app.usage.body', () => ctx.slots.register({ name: 'dsh-app.usage.body', locale: contextInsight.NS, registrant: 'dsh-app' }, UsageBody))
     ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({ name: 'conversation.composer.dock', id: 'dsh-app-context', order: 90, locale: contextInsight.NS, registrant: 'dsh-app', inject: () => ({ onOpen: () => {
-      document.documentElement.dataset.dshAppUsageTab = 'context'
-      window.dispatchEvent(new CustomEvent('dsh-app:usage-tab', { detail: { tab: 'context' } }))
       ctx.layout.selectPanel('dsh-app-cost')
     } }) }, contextInsight.ContextSummary))
     ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({ name: 'sidebar.panellist', id: 'dsh-app-cost', order: 90, label: () => ctx.locale.bind(NS)('cost'), registrant: 'dsh-app' }, () => h(Icon, { name: 'cost' })))
     syncPanels()
     syncFooters()
-    ctx.effect(() => installMcpRail(ctx), 'dsh-app: MCP rail launcher')
-    ctx.effect(() => installInlinePanels(ctx), 'dsh-app: inline settings and MCP presentation')
+    ctx.effect(() => installInlinePanels(ctx), 'dsh-app: inline settings presentation')
+    ctx.effect(() => pluginPages.install(ctx), 'dsh-app: plugin subpages')
   }
-  return { name: 'dsh-app-client', inject, apply }
+  return { name: 'dsh-app-client', inject, apply, sidebarEngine: sidebarBridge.engine }
 }

@@ -1,0 +1,12 @@
+{
+  "package": "dsh-better-sidebar",
+  "version": "0.24.1",
+  "hashes": {
+    "lib/index.js": "a39a18228c1ad1282040b80269358067a26bd61869902778eb2e71b85cfb45c7",
+    "lib/client.js": "657812e84edd91684b8e85b728f119ce0b0e0f5318ad96714f9c528d1b75b41e",
+    "lib/client-editor.js": "39537bd5d6124075d549e26995ea15542590cf1820ddad28932735153ebe2407",
+    "lib/client-mermaid.js": "0d4180a025fdcee519e6167e4b45b0193ce4adffcf50a583437a3111e68b3a64",
+    "lib/client-locale.js": "caa5c29d18c305247bc052add0c0bb7cacf10fc9e39e50a0814d6e74412abbdb",
+    "LICENSE": "f4d265194e0824721af0592462a71fe750c04db3565c23c5d6c65fdee25fb4b0"
+  }
+}

@@ -1,0 +1,164 @@
+{
+  "version": "0.2.63",
+  "package": "dsh-mcp-connector",
+  "files": [
+    {
+      "sha256": "44ab18f989b877265c0a007647a18ffc988c6d7a59dc3510bab9f083db670df3",
+      "path": "lib/callback-server.js"
+    },
+    {
+      "sha256": "87cfbbd8e8aa38f34290c85b8a6ea4172063ced1b4a2582c927940fb51a5a278",
+      "path": "lib/catalog.js"
+    },
+    {
+      "sha256": "6a72e764db562920cfd491bd3c36f2642e6d292d625aa9af4cca16294bdf3705",
+      "path": "lib/cli-providers.js"
+    },
+    {
+      "sha256": "2d34ed0ffb936feebac4e916d397e6056bc9ff858b233dcaac6e661a3ea3620e",
+      "path": "lib/connection-backup.js"
+    },
+    {
+      "sha256": "3fa09452fdf081bdc1bb972e2360f73a0bee68165a3ad843a1c5d8a387451bd3",
+      "path": "lib/connection-editor.js"
+    },
+    {
+      "sha256": "25484fb4ad9583b8e19258adf079595dad1672e8cd39a4357ccaf3ae2f99823e",
+      "path": "lib/connection-scopes.js"
+    },
+    {
+      "sha256": "783ca974d64e1b3d80823b0e261a03d4c588941eaff72100003c963f6d0b996a",
+      "path": "lib/constants.js"
+    },
+    {
+      "sha256": "d68032989978f282976b853bad0458e9a028f2c9c5b27557316da7758337744f",
+      "path": "lib/diagnostics.js"
+    },
+    {
+      "sha256": "c1416eff45c0d58854ccd8e3e8fecdb6cbec88a15aa6c05db24249342c2cd0a0",
+      "path": "lib/discovery-policy.js"
+    },
+    {
+      "sha256": "a23edc52a989f86cbfc12388addf9b51c9afd408ce42b2c5da43a4d2972873dc",
+      "path": "lib/governance.js"
+    },
+    {
+      "sha256": "b606ef7331441cc55a6a2770a2257a1644d735910c9421df43783fa739000ff9",
+      "path": "lib/grant-journal.js"
+    },
+    {
+      "sha256": "a0719915d50b2803dad69d8cc15eba0fd2c0cd2c84dabff29a80c7418d4b05ea",
+      "path": "lib/grant-lifecycle.js"
+    },
+    {
+      "sha256": "13d24bb6218d61129a94d9104808a43fb11443fae4beec61c31d3db274ee9271",
+      "path": "lib/index.js"
+    },
+    {
+      "sha256": "c6fd2e75ac5686a604d85535ce1effc068af234336d3f52e6af465de625c9b35",
+      "path": "lib/mcp-http.js"
+    },
+    {
+      "sha256": "8f8d7f5f17e4edb01ae43539334fafb76e125a3dfade6abac1cce13f9c36e3a0",
+      "path": "lib/mcp-provision.js"
+    },
+    {
+      "sha256": "06950ec56f25e0828a3c22870d7fcb1adb4b047f7c242a781df11d37e324cb85",
+      "path": "lib/mcp-validation.js"
+    },
+    {
+      "sha256": "44939a9ba6c4f2f7ae13262a9b786c55372c37a903d45d7a0e18a799dc7a4876",
+      "path": "lib/migration.js"
+    },
+    {
+      "sha256": "8397d8203d88a502517b287994cda43262aba51c649cbe6902d811a796452caa",
+      "path": "lib/oauth.js"
+    },
+    {
+      "sha256": "08569ed0f82a8edc8f0937a674bdaaee622aebc72580c47926aaad72e8d06fc9",
+      "path": "lib/prompts.js"
+    },
+    {
+      "sha256": "46ca29be1d0ed2d5268225b64071c6a0585ac2b21f0b1c4a8a487726b0261ab7",
+      "path": "lib/schema.js"
+    },
+    {
+      "sha256": "d628b6bf9fb2ae27ce21365e6adc8f5a5d8c2ef34e1fd898b90e772139eda760",
+      "path": "lib/settings.js"
+    },
+    {
+      "sha256": "7f802aa51dda6162082aea1814189998de09c956e9bb5cd7350db14c6edc3de9",
+      "path": "lib/status-events.js"
+    },
+    {
+      "sha256": "38258d5d8fab01a51a575adc4319e2943f047947537bcf25cf958e39b7b70ba7",
+      "path": "lib/stores.js"
+    },
+    {
+      "sha256": "505f0b2fccdcdd4318790c185543ea2d83b96ca3f8f1c62a5cdfc95aebcff3a2",
+      "path": "lib/tool-catalog-cache.js"
+    },
+    {
+      "sha256": "a58f6254d523bd39d734e4e412ec9d776c0791887bf3a3bbefac66f2fa399931",
+      "path": "lib/tools.js"
+    },
+    {
+      "sha256": "cbd40347f16e88544df3e0e51345cae0e64a63574836315b21d786abf46cdcf6",
+      "path": "lib/util.js"
+    },
+    {
+      "sha256": "bbf9eb823b5688a39edf7d0a2fa91c4750523e881fe0071dd9f4beec4778eb10",
+      "path": "lib/version-status.js"
+    },
+    {
+      "sha256": "38eb0369d85fdbb4877b93894cc0bb6c6a36baf6fdc8459b6ada1204f117dc44",
+      "path": "lib/web.js"
+    },
+    {
+      "sha256": "cd01fd89018899de808e93905760001f2f2e9eeb2fa9fca38ee490df031869ba",
+      "path": "lib/connectors/json-connector.js"
+    },
+    {
+      "sha256": "cec2e7ef9c50a9cee9ae15da00d3fabbfa6787d1a2d70a7ffc12cfbe5dfacf99",
+      "path": "lib/connectors/manual-connector.js"
+    },
+    {
+      "sha256": "5745d45fa492d0d1f0e467e960751530e172cd526fde54d4dbac29b6437a33df",
+      "path": "lib/connectors/oauth-connector.js"
+    },
+    {
+      "sha256": "a95eefa8d956d7a6abe18cd541c8a0c48e80b154e4596424e1408ab5e0d0c495",
+      "path": "catalog/catalog.json"
+    },
+    {
+      "sha256": "cf9c812e9e9624244b50e6a9e64717f668dc071326b537e5134bfbd56e30aa26",
+      "path": "scripts/cli-bridge.mjs"
+    },
+    {
+      "sha256": "234ded487800d03fb1e6b4175f6f30d08cd0cdfd9e4751a4260159c3f819b0f6",
+      "path": "LICENSE"
+    },
+    {
+      "sha256": "5774082362d06164dea993cbd2cb5f4b34469fdc8ece03fd301d479115c63e6e",
+      "path": "ui/assets/qcc-logo.svg"
+    },
+    {
+      "sha256": "611674eb35296a5467ef6ac73bebf37ee51c413ef06702ce43365b5efc0fab45",
+      "path": "ui/assets/pkulaw-logo.png"
+    },
+    {
+      "sha256": "2637c0913a5b70b8cff8ad38fb33ee7708f3e74f856c700a9415b39f6bf577ca",
+      "path": "ui/assets/wind-logo.png"
+    }
+  ],
+  "upstream": "https://github.com/duhu2000/dsh-mcp-connector",
+  "license": "MIT",
+  "modified": [
+    "lib/index.js",
+    "lib/web.js",
+    "lib/version-status.js",
+    "lib/schema.js",
+    "lib/cli-providers.js",
+    "lib/settings.js (removed)"
+  ]
+}

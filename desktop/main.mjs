@@ -1,4 +1,4 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, shell, Tray } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, shell, Tray } from 'electron'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, watch, writeFileSync } from 'node:fs'
@@ -7,8 +7,10 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { redact, StartupLog } from './startup-log.mjs'
 import { startupPage } from './startup-page.mjs'
+import { applyStartupTheme } from './startup-theme.mjs'
 import { APPLY_PLUGIN_UPDATES } from './parent-ipc.mjs'
-import { beginPluginUpdate, completePluginRollback, completePluginUpdates, pendingPluginUpdates, pluginUpdateInstalled, pluginUpdateRecovery, preparePluginRollback, recordPluginUpdateFailure, verifyPluginRollback } from './pending-updates.mjs'
+import { beginPluginUpdate, completePluginRollback, completePluginUpdateBatch, completePluginUpdates, hasPendingPluginOperations, pendingPluginUpdates, pluginUpdateInstalled, pluginUpdateRecovery, preparePluginRollback, recordPluginUpdateFailure, verifyPluginRollback } from './pending-updates.mjs'
+import { applyMarketOperations, completeMarketOperations, marketOperationInstalled, readMarketOperations, recordMarketFailure, recordMarketResults } from './market-operations.mjs'
 import { enforcePluginQuarantine, quarantineFailedPluginActivation } from './plugin-activation-recovery.mjs'
 import { checkCoreUpdate, readDshVersion, releaseUrl } from './core-update.mjs'
 import { isCurrentCoreUpdateCheck } from './core-update-order.mjs'
@@ -23,6 +25,7 @@ import { configurationRevision } from '../lib/configuration-snapshot.mjs'
 import { writeJson } from '../lib/files.mjs'
 
 const appId = 'app.cat-hode.dsh-app'
+const WINDOW_CONTROLS_HEIGHT = 30
 app.setName('DSH App')
 app.setAppUserModelId(appId)
 const dshHome = resolve(process.env.DSH_HOME || join(homedir(), '.dsh'))
@@ -275,8 +278,9 @@ async function startBackend(recover = false) {
     return existing
   }
   const recovery = pluginUpdateRecovery(profile, pluginBackups)
+  if (coreUpdating && (recover || recovery || hasPendingPluginOperations(profile))) throw new Error('插件变更尚未完成，不能同时切换 DSH 核心。')
   let rollback
-  let applied = []
+  let applied = { legacy: [], market: [] }
   if (recover || recovery?.recovering) {
     startup.status('loading', '正在恢复更新前的插件版本和启用配置…')
     rollback = preparePluginRollback(profile, pluginBackups)
@@ -287,6 +291,9 @@ async function startBackend(recover = false) {
   }
   const quarantined = enforcePluginQuarantine(profile, desktopLink)
   for (const item of quarantined) startup.line('system', `已隔离不兼容插件 ${item.packageName}@${item.version}；安装新版后会重新尝试加载。`)
+  for (const operation of applied.market) {
+    if (!marketOperationInstalled(profile, operation, { enabled: operation.activated })) throw new Error(`插件 ${operation.packageName} 的启用状态未能保持；隔离保护已保留，请检查诊断或恢复。`)
+  }
   if (quitAllowed) throw new Error('启动已取消。')
   const { node, cli, cwd, execArgv } = cliRuntime()
   const runner = asset('backend-runner.mjs')
@@ -347,9 +354,14 @@ async function startBackend(recover = false) {
     completePluginRollback(profile)
     startup.line('system', '已恢复更新前的插件配置；失败批次及日志已保存在备份目录。')
     log(`Plugin update recovered; backup=${rollback.backup}`)
-  } else if (applied.length > 0) {
-    completePluginUpdates(profile, applied)
-    startup.line('system', `${applied.length} 项插件变更已核验安装版本和启用配置，共享服务已就绪。`)
+  } else if (applied.legacy.length + applied.market.length > 0) {
+    if (applied.legacy.length) completePluginUpdates(profile, applied.legacy)
+    if (applied.market.length) {
+      recordMarketResults(profile, applied.market.map(operation => ({ ...operation, status: 'succeeded', finishedAt: Date.now() })))
+      completeMarketOperations(profile, applied.market)
+    }
+    completePluginUpdateBatch(profile)
+    startup.line('system', `${applied.legacy.length + applied.market.length} 项插件变更已核验安装版本和启用配置，共享服务已就绪。`)
   }
   return ready
 }
@@ -375,7 +387,9 @@ async function stopInstaller(child = installer) {
 
 async function installPendingPlugins() {
   const pending = pendingPluginUpdates(profile)
-  if (pending.length === 0) return []
+  const market = readMarketOperations(profile)
+  if (pending.length === 0 && market.length === 0) return { legacy: [], market: [] }
+  if (pending.some(target => market.some(operation => operation.packageName === target.packageName))) throw new Error('同一插件同时存在旧更新和市场待办，请取消其中一项后重试。')
   const recovery = beginPluginUpdate(profile, pluginBackups)
   const targets = pending.filter(target => !pluginUpdateInstalled(profile, target))
   if (targets.length > 0) {
@@ -392,11 +406,18 @@ async function installPendingPlugins() {
   for (const target of pending) {
     if (!pluginUpdateInstalled(profile, target)) throw new Error(`插件安装校验失败：${target.packageName}@${target.version}`)
   }
+  if (market.length) {
+    startup.status('loading', `正在应用 ${market.length} 项插件市场变更…`)
+    startup.line('system', `已备份插件配置：${recovery.backup}`)
+  }
+  const appliedMarket = await applyMarketOperations(profile, market, runPluginCommand)
   startup.status('loading', '插件安装完成，正在加载共享服务…')
-  return pending
+  return { legacy: pending, market: appliedMarket }
 }
 
 async function runPluginCommand(args) {
+  if (quitAllowed) throw new Error('客户端正在退出，插件待办已保留。')
+  if (backend?.exitCode === null || instance) throw new Error('共享服务尚未停止，不能修改当前配置的插件文件。')
   // Profiles can have their manifest/lockfile rewritten by plugins or rollback. pnpm 11's
   // optimistic fast path can otherwise report success while retaining different package files.
   args = [...args, '--config.optimistic-repeat-install=false']
@@ -405,6 +426,7 @@ async function runPluginCommand(args) {
   delete env.NODE_OPTIONS
   delete env.ELECTRON_RUN_AS_NODE
   delete env.DSH_APP_OWNER
+  for (const key of Object.keys(env)) if (/KEY|SECRET|TOKEN|PASSWORD/i.test(key)) delete env[key]
   startup.line('system', `执行插件管理：dsh plugin --profile web ${args.join(' ')}`)
   const child = spawn(node, [
     ...execArgv, '--use-system-ca', cli, 'plugin', '--profile', 'web', ...args,
@@ -482,6 +504,8 @@ function showFailure(error) {
   catch (logError) { log(`Could not save startup transcript: ${String(logError)}`) }
   try { recordPluginUpdateFailure(profile, pluginBackups, startup.text()) }
   catch (backupError) { log(`Could not record update failure: ${String(backupError)}`) }
+  try { if (pluginUpdateRecovery(profile, pluginBackups)) recordMarketFailure(profile, redact(String(error))) }
+  catch (resultError) { log(`Could not record marketplace failure: ${String(resultError)}`) }
   updateStartupRecovery()
   if (window && !window.isDestroyed()) {
     void showStartup('请查看启动日志，或点击下方按钮重新尝试。', true, 'error')
@@ -491,6 +515,7 @@ function showFailure(error) {
 }
 
 async function showStartup(message = '正在加载共享插件与会话…', retry = false, phase = 'stopped') {
+  applyStartupTheme(nativeTheme, profile, window, WINDOW_CONTROLS_HEIGHT)
   startup.status(retry ? phase : 'loading', message)
   if (!startupUrl) {
     const whale = readFileSync(asset('DSH.png')).toString('base64')
@@ -509,7 +534,7 @@ async function connect(recover = false, { allowPluginQuarantine = true } = {}) {
         try { saveStartupFailure(error) }
         catch (logError) { log(`Could not save startup transcript: ${String(logError)}`) }
         if (quitAllowed || recover || !allowPluginQuarantine || !(error.dshSharedFatal || /^共享服务退出（\d+）/.test(String(error.message)))
-          || pluginUpdateRecovery(profile, pluginBackups) || pendingPluginUpdates(profile).length > 0 || attempt === 4) throw error
+          || pluginUpdateRecovery(profile, pluginBackups) || hasPendingPluginOperations(profile) || attempt === 4) throw error
         if (backend) await stopBackend()
         const quarantined = quarantineFailedPluginActivation(profile, desktopLink, pluginBackups, startup.text())
         if (!quarantined) throw error
@@ -654,7 +679,7 @@ async function updateCoreRuntime(target) {
 async function doUpdateCoreRuntime(target) {
   if (quitAllowed || coreUpdating || restarting || connecting || installer || maintenance?.operation) return
   if (!ownsInstance()) throw new Error('当前共享服务由外部 Web 命令启动。请先从该入口停止服务，再由 DSH App 启动后执行一键更新。')
-  if (pendingPluginUpdate || pendingPluginUpdates(profile).length || pluginUpdateRecovery(profile, pluginBackups)) {
+  if (pendingPluginUpdate || hasPendingPluginOperations(profile) || pluginUpdateRecovery(profile, pluginBackups)) {
     throw new Error('有待完成或待恢复的插件更新。请先处理插件更新，再升级 DSH 核心。')
   }
   const previous = cliRuntime()
@@ -689,7 +714,7 @@ async function doUpdateCoreRuntime(target) {
       signal:upgradeAbort.signal, onProgress:value => startup.line('system', `${value.kind}: ${value.subject} · ${value.status}`) })
     if (functional.status !== 'passed') throw new Error(`新版 DSH 功能检查未通过：${functional.message}`)
     if (await configurationRevision({ home:dshHome, profile }) !== revisionBefore) throw new Error('检查期间共享配置已变化，请重新执行更新。')
-    if (pendingPluginUpdate || pendingPluginUpdates(profile).length || pluginUpdateRecovery(profile, pluginBackups)) {
+    if (pendingPluginUpdate || hasPendingPluginOperations(profile) || pluginUpdateRecovery(profile, pluginBackups)) {
       throw new Error('安装期间出现插件更新请求；本次核心切换已取消，请先完成插件更新。')
     }
     await stopBackend()
@@ -759,13 +784,19 @@ async function doUpdateCoreRuntime(target) {
 
 async function main() {
   Menu.setApplicationMenu(null)
+  const palette = applyStartupTheme(nativeTheme, profile, undefined, WINDOW_CONTROLS_HEIGHT)
   window = new BrowserWindow({
     title: 'DSH', width: 1440, height: 920, minWidth: 880, minHeight: 600,
     show: !process.argv.includes('--open-web'),
-    icon: asset('DSH.ico'), backgroundColor: '#f7f8fc',
-    titleBarStyle: 'hidden', titleBarOverlay: { color: '#ffffff', symbolColor: '#253039', height: 38 },
+    icon: asset('DSH.ico'), backgroundColor: palette.background,
+    titleBarStyle: 'hidden', titleBarOverlay: { color: palette.background, symbolColor: palette.foreground, height: WINDOW_CONTROLS_HEIGHT },
     webPreferences: { preload: fileURLToPath(new URL('./preload.cjs', import.meta.url)), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true },
   })
+  const refreshStartupTheme = () => {
+    if (window && !window.isDestroyed() && window.webContents.getURL() === startupUrl) applyStartupTheme(nativeTheme, profile, window, WINDOW_CONTROLS_HEIGHT)
+  }
+  nativeTheme.on('updated', refreshStartupTheme)
+  app.once('will-quit', () => nativeTheme.off('updated', refreshStartupTheme))
   const requireStartupFrame = event => {
     if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || event.senderFrame.url !== startupUrl) throw new Error('当前页面不能请求此操作。')
   }
@@ -778,7 +809,7 @@ async function main() {
       const rollback = kind === 'plugin-update'
       const updateRecovery = pluginUpdateRecovery(profile, pluginBackups)
       if (quitAllowed || coreUpdating || restarting || connecting || installer
-        || !rollback && (pendingPluginUpdates(profile).length > 0 || updateRecovery)) throw new Error('请先完成当前启动或更新操作。')
+        || !rollback && (hasPendingPluginOperations(profile) || updateRecovery)) throw new Error('请先完成当前启动或更新操作。')
       if (rollback && !updateRecovery) throw new Error('没有可恢复的插件更新备份。')
       if (kind === 'core' && !coreRollbackTarget(desktopLink)) throw new Error('没有可用的上一个 DSH 版本及其配置备份。')
       if (['plugin', 'plugin-update', 'core'].includes(kind) && instance && !ownsInstance())
@@ -862,10 +893,12 @@ async function main() {
       catch (error) { await dialog.showMessageBox(window, { type: 'warning', title: '暂不能一键更新', message: redact(String(error)), buttons: ['确定'] }) }
     } else if (result.response === 1) await shell.openExternal(releaseUrl(state.version))
   })
-  ipcMain.on('dsh:desktop-theme', (event, scheme) => {
+  ipcMain.on('dsh:desktop-theme', (event, state) => {
     try { requireDesktopFrame(event) } catch { return }
-    if (scheme !== 'light' && scheme !== 'dark') return
-    window.setTitleBarOverlay({ color: scheme === 'dark' ? '#191919' : '#ffffff', symbolColor: scheme === 'dark' ? '#dce0df' : '#253039', height: 38 })
+    const scheme = typeof state === 'string' ? state : state?.scheme
+    const source = typeof state === 'string' ? undefined : state?.source
+    if (!['light', 'dark'].includes(scheme) || source !== undefined && !['system', 'light', 'dark'].includes(source)) return
+    applyStartupTheme(nativeTheme, profile, window, WINDOW_CONTROLS_HEIGHT, scheme, source)
   })
   ipcMain.handle('dsh:desktop-action', async (event, action) => {
     requireDesktopFrame(event)

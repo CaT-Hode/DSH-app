@@ -1,0 +1,6 @@
+{
+  "version": "0.2.63",
+  "name": "dsh-app-mcp-engine",
+  "license": "MIT",
+  "type": "module"
+}

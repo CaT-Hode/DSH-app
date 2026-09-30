@@ -14,11 +14,14 @@ await mkdir(join(target, 'desktop'), { recursive: true })
 await cp(join(root, 'lib'), join(target, 'lib'), { recursive: true })
 const chrome = await readFile(join(root, 'desktop', 'chrome.cjs'), 'utf8')
 await writeFile(join(repository, 'apps', 'desktop', 'local-windows', 'desktop-chrome.cjs'), chrome)
+await cp(join(root, 'desktop', 'startup-page.mjs'), join(repository, 'apps', 'desktop', 'local-windows', 'startup-page.mjs'))
 for (const name of [
   'maintenance-controller.mjs',
   'maintenance-window.mjs',
   'maintenance-preload.cjs',
   'startup-log.mjs',
+  'startup-theme.mjs',
+  'market-operations.mjs',
   'backend-runner.mjs',
   'parent-ipc.mjs'
 ]) {
