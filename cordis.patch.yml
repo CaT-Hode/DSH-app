@@ -1,3 +1,9 @@
+- id: ui-sidebar
+  disabled: true
+- id: session-query-sqlite
+  config:
+    path: ':memory:'
+    openAt: first-search
 - insert:
     - id: dsh-app-host
       name: dsh-app

@@ -1,5 +1,5 @@
-/** Copy DSH App maintenance modules into the repository-backed Windows adapter. */
-import { cp, mkdir, readFile, realpath } from 'node:fs/promises'
+/** Copy DSH App maintenance modules and titlebar into the repository-backed Windows adapter. */
+import { cp, mkdir, readFile, realpath, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
@@ -12,6 +12,8 @@ if (manifest.name !== '@deepseek-ai/dsh-desktop')
 const target = join(repository, 'apps', 'desktop', 'local-windows', 'maintenance')
 await mkdir(join(target, 'desktop'), { recursive: true })
 await cp(join(root, 'lib'), join(target, 'lib'), { recursive: true })
+const chrome = await readFile(join(root, 'desktop', 'chrome.cjs'), 'utf8')
+await writeFile(join(repository, 'apps', 'desktop', 'local-windows', 'desktop-chrome.cjs'), chrome)
 for (const name of [
   'maintenance-controller.mjs',
   'maintenance-window.mjs',
@@ -24,4 +26,4 @@ for (const name of [
 }
 const yaml = await realpath(createRequire(import.meta.url).resolve('yaml/package.json'))
 await cp(resolve(yaml, '..'), join(target, 'node_modules', 'yaml'), { recursive: true, dereference: true })
-console.log('Synchronized DSH App maintenance modules into the local Windows adapter')
+console.log('Synchronized DSH App maintenance modules and titlebar into the local Windows adapter')

@@ -1,11 +1,12 @@
 {
   "name": "dsh-app",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "DSH desktop plugin for Windows: one Electron window, shared Web sessions and plugins, live startup logs and update recovery.",
   "type": "module",
   "main": "./lib/index.mjs",
   "exports": {
     ".": "./lib/index.mjs",
+    "./client": "./lib/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
@@ -25,6 +26,17 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "external": ["react", "react-dom"],
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-client-locale"
+      ]
     }
   },
   "keywords": [
@@ -50,11 +62,20 @@
   "optionalDependencies": {
     "electron": "44.0.0"
   },
+  "peerDependencies": {
+    "@deepseek-ai/dsh": "^0.2.0-rc.2"
+  },
   "scripts": {
-    "build": "node scripts/build-preload.mjs",
-    "test": "node --test tests/cost-meter.spec.mjs"
+    "build": "node scripts/build-client.mjs && node scripts/build-preload.mjs",
+    "test": "node --test tests/cost-meter.spec.mjs",
+    "test:client": "node --test tests/client-ui.spec.mjs"
   },
   "dependencies": {
     "yaml": "2.8.1"
+  },
+  "devDependencies": {
+    "jsdom": "29.1.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   }
 }

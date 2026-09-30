@@ -9,6 +9,7 @@ const labels = {
     schedule: '定时任务', im: 'IM 助理', prev: '上一个任务', next: '下一个任务',
     zoomIn: '放大', zoomOut: '缩小', zoomReset: '实际大小', about: '关于 DSH',
     coreUpdate: '更新 DSH', coreUpdateBusy: '正在处理更新…', diagnostics: '诊断与恢复', cost: '费用统计',
+    unavailable: '当前没有可用入口，请在侧栏或设置中查看该功能',
   },
   en: {
     back: 'Back to previous task', forward: 'Forward to next task', search: 'Search sessions', more: 'More desktop actions',
@@ -18,6 +19,7 @@ const labels = {
     schedule: 'Scheduled tasks', im: 'IM assistant', prev: 'Previous task', next: 'Next task',
     zoomIn: 'Zoom in', zoomOut: 'Zoom out', zoomReset: 'Actual size', about: 'About DSH',
     coreUpdate: 'Update DSH', coreUpdateBusy: 'Processing update…', diagnostics: 'Diagnostics and recovery', cost: 'Cost and usage',
+    unavailable: 'No entry is currently available; check the sidebar or settings for this feature',
   },
 }
 
@@ -32,11 +34,9 @@ const icons = {
 
 const style = `
 html[data-dsh-desktop-chrome] #root { height: calc(100vh - ${HEIGHT}px) !important; margin-top: ${HEIGHT}px !important; }
-html[data-dsh-desktop-chrome] body:has(.dcu-settings-page) .dcu-settings-page { top: ${HEIGHT}px !important; }
 #dsh-desktop-chrome {
-  --dsh-chrome-side: #f3fbfb; --dsh-chrome-main: #fff; --dsh-chrome-text: #253039;
+  --dsh-chrome-side: #fff; --dsh-chrome-main: #fff; --dsh-chrome-text: #253039;
   --dsh-chrome-muted: #69747c; --dsh-chrome-hover: #e8eff0; --dsh-chrome-width: 240px;
-  --dsh-chrome-border: rgba(0, 0, 0, .12); --dsh-chrome-border-width: 1px;
   position: fixed; inset: 0 0 auto; height: ${HEIGHT}px; z-index: 2147483647;
   display: grid; grid-template-columns: var(--dsh-chrome-width) minmax(0, 1fr);
   color: var(--dsh-chrome-text); font: 12px/1.2 "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
@@ -47,17 +47,14 @@ html[data-dsh-desktop-chrome] body:has(.dcu-settings-page) .dcu-settings-page { 
 #dsh-desktop-chrome .dsh-chrome-left, #dsh-desktop-chrome .dsh-chrome-main {
   display: flex; align-items: center; min-width: 0; height: ${HEIGHT}px;
 }
-#dsh-desktop-chrome .dsh-chrome-left { gap: 3px; padding: 0 7px; background: var(--dsh-chrome-side); border-right: var(--dsh-chrome-border-width) solid var(--dsh-chrome-border); }
+#dsh-desktop-chrome .dsh-chrome-left { gap: 3px; padding: 0 7px; background: var(--dsh-chrome-main); }
 #dsh-desktop-chrome[data-compact="true"] .dsh-chrome-left { justify-content: center; padding: 0; }
-#dsh-desktop-chrome[data-compact="true"] .dsh-chrome-left button:not([data-action="more"]),
-#dsh-desktop-chrome[data-compact="true"] .dsh-chrome-divider { display: none; }
+#dsh-desktop-chrome[data-compact="true"] .dsh-chrome-left button:not([data-action="more"]) { display: none; }
 #dsh-desktop-chrome .dsh-chrome-main { gap: 8px; padding: 0 146px 0 14px; background: var(--dsh-chrome-main); }
 #dsh-desktop-chrome .dsh-chrome-icon { width: 29px; height: 29px; flex: none; border-radius: 7px; display: grid; place-items: center; background: transparent; }
 #dsh-desktop-chrome .dsh-chrome-icon:hover:not(:disabled), #dsh-desktop-chrome .dsh-chrome-icon[aria-expanded="true"] { background: var(--dsh-chrome-hover); }
 #dsh-desktop-chrome .dsh-chrome-icon:disabled { opacity: .34; cursor: default; }
 #dsh-desktop-chrome .dsh-chrome-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
-#dsh-desktop-chrome .dsh-chrome-divider { height: 16px; width: 1px; margin: 0 4px; background: var(--dsh-chrome-muted); opacity: .25; }
-#dsh-desktop-chrome .dsh-chrome-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dsh-chrome-muted); }
 #dsh-desktop-chrome .dsh-chrome-spacer { flex: 1; }
 #dsh-desktop-chrome .dsh-chrome-update { display: flex; align-items: center; gap: 5px; flex: none; min-height: 26px; padding: 0 9px; border-radius: 6px; background: #e7efff; color: #315cba; font-weight: 600; }
 #dsh-desktop-chrome .dsh-chrome-update:hover:not(:disabled) { background: #d9e6ff; }
@@ -77,7 +74,7 @@ html[data-dsh-desktop-chrome] body:has(.dcu-settings-page) .dcu-settings-page { 
 #dsh-desktop-chrome button:focus-visible { outline: 2px solid #4c79da; outline-offset: 1px; }
 html[data-dsh-desktop-theme="dark"] #dsh-desktop-chrome {
   --dsh-chrome-side: #1f2221; --dsh-chrome-main: #191919; --dsh-chrome-text: #dce0df;
-  --dsh-chrome-muted: #9aa2a0; --dsh-chrome-hover: #303634; --dsh-chrome-border: #404040;
+  --dsh-chrome-muted: #9aa2a0; --dsh-chrome-hover: #303634;
 }
 html[data-dsh-desktop-theme="dark"] #dsh-desktop-chrome .dsh-chrome-update { background: #25395e; color: #b9d0ff; }
 html[data-dsh-desktop-theme="dark"] #dsh-desktop-chrome .dsh-chrome-update:hover:not(:disabled) { background: #2e4877; }
@@ -123,16 +120,10 @@ function mountDesktopChrome(ipcRenderer) {
   }
   const back = button('back', 'back', left)
   const forward = button('forward', 'forward', left)
-  const divider = document.createElement('span')
-  divider.className = 'dsh-chrome-divider'
-  left.append(divider)
   button('search', 'search', left)
   const more = button('more', 'more', left)
   more.setAttribute('aria-haspopup', 'menu')
   more.setAttribute('aria-expanded', 'false')
-  const title = document.createElement('span')
-  title.className = 'dsh-chrome-title'
-  main.append(title)
   const spacer = document.createElement('span')
   spacer.className = 'dsh-chrome-spacer'
   main.append(spacer)
@@ -196,12 +187,13 @@ function mountDesktopChrome(ipcRenderer) {
 
   let history = []
   let index = -1
-  const rowFor = id => [...document.querySelectorAll('.dcu-wb-session[data-dcu-session]')]
-    .find(row => row.dataset.dcuSession === id && row.getBoundingClientRect().height > 0)
-  const selected = () => [...document.querySelectorAll('.dcu-wb-session[aria-selected="true"][data-dcu-session]')]
+  const rowId = row => row?.dataset.rowKey?.slice('session:'.length)
+  const rowFor = id => [...document.querySelectorAll('[data-row-key^="session:"]')]
+    .find(row => rowId(row) === id && row.getBoundingClientRect().height > 0)
+  const selected = () => [...document.querySelectorAll('[data-row-key^="session:"][aria-selected="true"]')]
     .find(row => row.getBoundingClientRect().height > 0)
   const updateNavigation = () => {
-    const current = selected()?.dataset.dcuSession
+    const current = rowId(selected())
     if (current && history[index] !== current) {
       history = history.slice(0, index + 1)
       history.push(current)
@@ -210,8 +202,16 @@ function mountDesktopChrome(ipcRenderer) {
     }
     back.disabled = index <= 0
     forward.disabled = index < 0 || index >= history.length - 1
-    const heading = document.title.replace(/\s*[—-]\s*DeepSeek Harness$/, '').trim()
-    title.textContent = heading && heading !== 'DeepSeek Harness' ? heading : 'DeepSeek Harness'
+    if (document.documentElement.dataset.dshAppUi === 'true') {
+      const available = new Set((document.documentElement.dataset.dshAppActions ?? '').split(' '))
+      for (const action of ['plugins', 'experts', 'skills', 'connector', 'schedule', 'im']) {
+        const button = menu.querySelector(`[data-action="${action}"]`)
+        if (button) {
+          button.disabled = !available.has(action)
+          button.title = button.disabled ? `${locale()[action]} · ${locale().unavailable}` : locale()[action]
+        }
+      }
+    }
   }
   const visible = element => element.getBoundingClientRect().width > 0 && element.getBoundingClientRect().height > 0
   const clickMatching = patterns => {
@@ -222,7 +222,7 @@ function mountDesktopChrome(ipcRenderer) {
     return !!target
   }
   const chooseSession = offset => {
-    const rows = [...document.querySelectorAll('.dcu-wb-session[data-dcu-session]')].filter(visible)
+    const rows = [...document.querySelectorAll('[data-row-key^="session:"]')].filter(visible)
     const current = selected()
     const next = rows[rows.indexOf(current) + offset]
     next?.click()
@@ -241,6 +241,10 @@ function mountDesktopChrome(ipcRenderer) {
     if (id === 'more') { menu.hidden = !menu.hidden; more.setAttribute('aria-expanded', String(!menu.hidden)); if (!menu.hidden) menu.querySelector('button')?.focus(); return }
     menu.hidden = true
     more.setAttribute('aria-expanded', 'false')
+    if (document.documentElement.dataset.dshAppUi === 'true' && ['new', 'sidebar', 'search', 'cost', 'settings', 'plugins', 'experts', 'skills', 'connector', 'schedule', 'im'].includes(id)) {
+      window.dispatchEvent(new CustomEvent('dsh-app:action', { detail: { action: id } }))
+      return
+    }
     if (id === 'back') openHistory(-1)
     else if (id === 'forward') openHistory(1)
     else if (id === 'prev') chooseSession(-1)
@@ -308,28 +312,27 @@ function mountDesktopChrome(ipcRenderer) {
   const sidebarResize = new ResizeObserver(() => syncAppearance())
   const syncAppearance = () => {
     const frame = document.querySelector('[data-shell-overlay]')?.parentElement
-    const sidebar = document.querySelector('.dcu-settings-page .dcu-settings-nav') ?? frame?.firstElementChild
+    const sidebar = frame?.firstElementChild
     if (sidebar && sidebar !== sidebarObserved) {
       sidebarResize.disconnect()
       sidebarResize.observe(sidebar)
       sidebarObserved = sidebar
     }
     if (sidebar) {
-      const width = Math.round(sidebar.getBoundingClientRect().width)
+      const width = Math.round(sidebar.getBoundingClientRect().right)
       bar.style.setProperty('--dsh-chrome-width', `${width}px`)
       bar.style.setProperty('--dsh-chrome-menu-left', `${width < 170 ? 8 : 108}px`)
       bar.dataset.compact = String(width < 170)
-      const sidebarStyle = getComputedStyle(sidebar)
-      if (parseFloat(sidebarStyle.borderRightWidth) > 0) {
-        bar.style.setProperty('--dsh-chrome-border', sidebarStyle.borderRightColor)
-        bar.style.setProperty('--dsh-chrome-border-width', sidebarStyle.borderRightWidth)
-      }
     }
     const scheme = getComputedStyle(document.documentElement).colorScheme.includes('dark') ? 'dark' : 'light'
     document.documentElement.dataset.dshDesktopTheme = scheme
-    const aside = sidebar?.querySelector('.dcu-root') ?? sidebar
-    const color = aside && getComputedStyle(aside).backgroundColor
-    if (color && color !== 'rgba(0, 0, 0, 0)') bar.style.setProperty('--dsh-chrome-side', color)
+    const theme = getComputedStyle(document.body)
+    const color = theme.getPropertyValue('--dsh-app-surface').trim() || theme.getPropertyValue('--dsw-alias-bg-base').trim() || theme.backgroundColor
+    if (color && color !== 'rgba(0, 0, 0, 0)') bar.style.setProperty('--dsh-chrome-main', color)
+    for (const [target, source] of [['text', '--dsw-alias-label-primary'], ['muted', '--dsw-alias-label-tertiary'], ['hover', '--dsw-alias-interactive-bg-hover']]) {
+      const value = theme.getPropertyValue(source).trim()
+      if (value) bar.style.setProperty(`--dsh-chrome-${target}`, value)
+    }
     if (scheme !== lastScheme) { lastScheme = scheme; ipcRenderer.send('dsh:desktop-theme', scheme) }
   }
   let syncQueued = false
@@ -341,18 +344,15 @@ function mountDesktopChrome(ipcRenderer) {
   new MutationObserver(scheduleSync).observe(document.getElementById('root') ?? document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-selected'] })
   const restoreChromeAccess = () => {
     scheduleSync()
-    if (!document.querySelector('.dcu-settings-page')) return
-    if (bar.inert) bar.inert = false
-    if (bar.hasAttribute('data-dcu-settings-isolated')) bar.removeAttribute('data-dcu-settings-isolated')
   }
   new MutationObserver(restoreChromeAccess).observe(document.body, {
     childList: true, subtree: false, attributes: true,
-    attributeFilter: ['inert', 'data-dcu-settings-isolated'],
+    attributeFilter: ['inert', 'class', 'style', 'data-theme'],
   })
   new MutationObserver(restoreChromeAccess).observe(bar, {
-    attributes: true, attributeFilter: ['inert', 'data-dcu-settings-isolated'],
+    attributes: true, attributeFilter: ['inert'],
   })
-  new MutationObserver(() => { updateLocale(); scheduleSync() }).observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'class', 'style', 'data-theme'] })
+  new MutationObserver(() => { updateLocale(); scheduleSync() }).observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'class', 'style', 'data-theme', 'data-dsh-app-actions'] })
   document.addEventListener('click', () => setTimeout(scheduleSync, 60), true)
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', scheduleSync)
   updateLocale()

@@ -16,6 +16,8 @@
     table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}th,td{padding:10px 8px;border-bottom:1px solid #353a43;text-align:right}th:first-child,td:first-child{text-align:left}th{color:#9fa8b6;font-weight:500;font-size:12px}
     input,select,button{background:#2a2f38;color:#e6e9ef;border:1px solid #484f5b;border-radius:7px;padding:7px 10px;font:inherit}
     button{cursor:pointer}button:hover{background:#3a4251}input[type=number]{width:110px}label{display:flex;align-items:center;gap:8px;margin:10px 0}.notice{min-height:21px;color:#a6baff}
+    #price-route{min-width:0;max-width:100%;flex:1}td:first-child{overflow-wrap:anywhere}.amount{overflow-wrap:anywhere}
+    .balance{margin-top:14px}.balance-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.balance-heading h2{margin:0}.balance .notice{margin-top:12px}button:disabled{opacity:.55;cursor:wait}
   </style>
 </head>
 <body>
@@ -27,6 +29,10 @@
     <div class="card"><div class="label" data-i18n="month"></div><div class="amount" id="month">—</div><div class="detail" id="month-detail"></div></div>
     <div class="card"><div class="label" data-i18n="all"></div><div class="amount" id="all">—</div><div class="detail" id="all-detail"></div></div>
   </section>
+  <section class="panel balance"><div class="balance-heading"><h2 data-i18n="balanceTitle"></h2><button type="button" id="refresh-balance" data-i18n="balanceRefresh"></button></div>
+    <p id="balance-status" class="notice" role="status" data-i18n="balanceLoading"></p>
+    <table><thead><tr><th data-i18n="currency"></th><th data-i18n="balanceTotal"></th><th data-i18n="balanceGranted"></th><th data-i18n="balanceTopup"></th></tr></thead><tbody id="balances"></tbody></table>
+    <p class="detail" data-i18n="balanceNote"></p></section>
   <div class="grid">
     <section class="panel"><h2 data-i18n="daily"></h2><table><thead><tr><th data-i18n="date"></th><th data-i18n="calls"></th><th data-i18n="input"></th><th data-i18n="cache"></th><th data-i18n="output"></th><th data-i18n="cost"></th></tr></thead><tbody id="days"></tbody></table></section>
     <section class="panel"><h2 data-i18n="budgetAndDisplay"></h2><div class="label" id="budget-label"></div><div class="bar"><div class="fill" id="budget-fill"></div></div>
@@ -36,6 +42,13 @@
       <p class="detail" data-i18n="estimateNote"></p></section>
     <section class="panel"><h2 data-i18n="modelCosts"></h2><table><thead><tr><th data-i18n="model"></th><th data-i18n="calls"></th><th data-i18n="cost"></th></tr></thead><tbody id="models"></tbody></table></section>
     <section class="panel"><h2 data-i18n="todaySessions"></h2><table><thead><tr><th data-i18n="session"></th><th data-i18n="calls"></th><th data-i18n="cost"></th></tr></thead><tbody id="sessions"></tbody></table></section>
+    <section class="panel"><h2 data-i18n="routePricing"></h2><p class="detail" data-i18n="priceNote"></p>
+      <form id="pricing"><label><span data-i18n="route"></span> <select id="price-route"></select></label>
+        <label><span data-i18n="uncachedPrice"></span> <input id="price-input" type="number" min="0" step="any" required></label>
+        <label><span data-i18n="cacheReadPrice"></span> <input id="price-cache" type="number" min="0" step="any" required></label>
+        <label><span data-i18n="cacheWritePrice"></span> <input id="price-write" type="number" min="0" step="any" required></label>
+        <label><span data-i18n="outputPrice"></span> <input id="price-output" type="number" min="0" step="any" required></label>
+        <button type="submit" id="save-price" data-i18n="savePrice"></button></form><p id="price-status" class="detail"></p></section>
     <section class="panel"><h2 data-i18n="historyTitle"></h2><p id="history" class="muted"></p><p class="detail" data-i18n="historyNote"></p></section>
   </div>
 </main>
