@@ -3,6 +3,7 @@ import createPluginPagesClient from './plugin-pages.mjs'
 import createMcpClient from './mcp.mjs'
 import createThemeSyncClient from './theme-sync.mjs'
 import createSidebarBridge from './sidebar-bridge.mjs'
+import createSidebarSettingsClient from './sidebar-settings.mjs'
 
 /** Build the browser half against DSH's shared module table, without bundling React. */
 export default function createDshAppClient(require, css) {
@@ -14,6 +15,7 @@ export default function createDshAppClient(require, css) {
   const pluginPages = createPluginPagesClient(require)
   const mcpClient = createMcpClient(require)
   const sidebarBridge = createSidebarBridge(require)
+  const sidebarSettings = createSidebarSettingsClient(require)
   const dictionaries = {
     zh: {
       brand: 'DeepSeek Harness', home: '聊天', recent: '最近对话', new: '新聊天',
@@ -561,12 +563,13 @@ export default function createDshAppClient(require, css) {
   const inject = [...new Set(['slots', 'layout', 'uiWorkspace', 'locale', 'sessions', 'conversation', ...sidebarBridge.inject])]
   /** Claim only the sidebar shell; the official workspace, input and settings plugins retain their logic. */
   function apply(ctx) {
-    sidebarBridge.install(ctx)
+    const sidebarPreferences = sidebarBridge.install(ctx)
     createThemeSyncClient().install(ctx)
     ctx.effect(() => ctx.locale.register(NS, dictionaries), 'dsh-app: client dictionaries')
     ctx.effect(() => ctx.locale.register(contextInsight.NS, contextInsight.dictionaries), 'dsh-app: context dictionaries')
     ctx.effect(() => ctx.locale.register(pluginPages.NS, pluginPages.dictionaries), 'dsh-app: plugin page dictionaries')
     ctx.effect(() => ctx.locale.register(mcpClient.NS, mcpClient.dictionaries), 'dsh-app: MCP dictionaries')
+    ctx.effect(() => ctx.locale.register(sidebarSettings.NS, sidebarSettings.dictionaries), 'dsh-app: workbench settings dictionaries')
     ctx.effect(() => {
       const sheet = document.createElement('style')
       sheet.dataset.pluginCss = 'dsh-app/client-ui'
@@ -620,6 +623,7 @@ export default function createDshAppClient(require, css) {
     }, Sidebar))
     ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'dsh-app-cost', locale: NS, registrant: 'dsh-app', children: { 'dsh-app.usage.body': { kind: 'single', scope: 'session-maybe' } }, inject: () => ({ selectPanel: id => ctx.layout.selectPanel(id) }) }, CostPanel))
     ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'dsh-app-settings', locale: NS, registrant: 'dsh-app', inject: () => ({ name: 'settings', selectPanel: id => ctx.layout.selectPanel(id) }) }, InlinePanelHost))
+    ctx.effect(() => ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'dsh-app-workbench', order: 30, locale: sidebarSettings.NS, registrant: 'dsh-app', inject: () => sidebarPreferences }, sidebarSettings.SidebarSettings)), 'dsh-app: General workbench settings')
     ctx.slots.inject('dsh-app.usage.body', () => ctx.slots.register({ name: 'dsh-app.usage.body', locale: contextInsight.NS, registrant: 'dsh-app' }, UsageBody))
     ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({ name: 'conversation.composer.dock', id: 'dsh-app-context', order: 90, locale: contextInsight.NS, registrant: 'dsh-app', inject: () => ({ onOpen: () => {
       ctx.layout.selectPanel('dsh-app-cost')

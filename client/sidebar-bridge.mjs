@@ -29,7 +29,7 @@ export function registerSidebarAliases(target) {
 
 /** Build one integrated engine; its public service remains ctx.betterSidebar.
  * @param require DSH's synchronous module table resolver.
- * @returns Engine exports, required services and its client activation method.
+ * @returns Engine exports, required services and activation returning internal General settings resources.
  */
 export default function createSidebarBridge(require) {
   const engine = createOwnedSidebarEngine(require)

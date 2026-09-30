@@ -9,3 +9,5 @@ The editor, Mermaid and optional locale integration stay separate lazy scripts. 
 The three lazy scripts and license retain their original bytes through repository attributes. Only the published editor and Mermaid bundles exempt original trailing spaces from Git whitespace checks; those spaces include template-string content. Owned source and other files retain ordinary whitespace checks.
 
 The integrated client contains exceptions from contributed registry and session-state subscribers so one failing subscriber does not prevent native tab synchronization, another subscriber or contribution disposal. Callback failures retain the engine's existing error reporting.
+
+The engine no longer contributes its original Side card settings page or navigation icon. Activation returns its preference resources to DSH App, whose owned General settings UI edits the same revision-protected settings and retains dynamic tab, viewer and extension declarations. Shell-path guidance points to General settings.

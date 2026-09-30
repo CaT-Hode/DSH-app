@@ -1,6 +1,6 @@
 {
   "name": "dsh-app",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "DSH desktop plugin for Windows: one Electron window, shared Web sessions and plugins, live startup logs and update recovery.",
   "type": "module",
   "main": "./lib/index.mjs",

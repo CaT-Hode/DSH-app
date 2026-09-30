@@ -15,10 +15,11 @@ const factories = [
   factory('../client/theme-sync.mjs', 'createThemeSyncClient'),
   factory('../lib/sidebar/upstream/client-factory.mjs', 'createOwnedSidebarEngine'),
   factory('../client/sidebar-bridge.mjs', 'createSidebarBridge'),
+  factory('../client/sidebar-settings.mjs', 'createSidebarSettingsClient'),
   factory('../client/plugin-pages.mjs', 'createPluginPagesClient'),
   factory('../client/plugin.mjs', 'createDshAppClient'),
 ].join('\n')
 const bridge = factory('../client/sidebar-bridge.mjs', 'createSidebarBridge')
-const css = read('../client/style.css') + '\n' + read('../client/mcp.css') + '\n' + read('../client/plugin-pages.css')
+const css = read('../client/style.css') + '\n' + read('../client/mcp.css') + '\n' + read('../client/plugin-pages.css') + '\n' + read('../client/sidebar-settings.css')
 writeFileSync(new URL('../lib/client.js', import.meta.url), `(function () {\n${bridge}\nregisterSidebarAliases(window.__ModuleLoader__);\nwindow.__ModuleLoader__.load({\n  id: 'dsh-app',\n  factory: (require) => {\n${factories}\n    return createDshAppClient(require, ${JSON.stringify(css)});\n  },\n});\n})();\n`)
 process.stdout.write('Built DSH App client bundle\n')

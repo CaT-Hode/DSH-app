@@ -75,7 +75,7 @@ Official scheduling, auto-review, Agent Team and voice input, plus compatible ex
 
 ## Demos
 
-These recordings show the earlier desktop shell, **not the current 0.3.5 workbench layout**.
+These recordings show the earlier desktop shell, **not the current 0.3.6 workbench layout**.
 
 **Desktop window and title bar**
 
@@ -93,7 +93,7 @@ Recorded with real DSH `0.1.7-rc.2`, the stock Web interface and a separate demo
 
 - Windows, **Node.js 24+** and **pnpm 11**.
 - An installed [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), with `dsh` available in your terminal.
-- DSH App **0.3.5** targets the DSH **0.2.0-rc.2** client APIs. Its package version requirement prevents activation on older cores. Electron is **44**; run the functional check when using another core version.
+- DSH App **0.3.6** targets the DSH **0.2.0-rc.2** client APIs. Its package version requirement prevents activation on older cores. Electron is **44**; run the functional check when using another core version.
 - Remove or disable duplicate bundles using the conflict table above, retaining preferences and data needed for migration.
 
 ### 1. Add the plugin
@@ -146,6 +146,7 @@ Follow https://github.com/CaT-Hode/DSH-app to install DSH App into my existing w
 | Inspect costs and balance | **Cost and usage** at the bottom of the sidebar shows the official API balance, monthly costs, tokens and budget; click it for details. The shared Web service also serves `/dsh-app/cost` |
 | Inspect the selected conversation's context | **Current conversation** on the same **Cost and usage** page, or click the context summary beneath the composer |
 | Manage skills | **Plugins → Skills**, for viewing, creation, editing, enablement, import, recovery and library settings |
+| Configure files, previews and task workbench | **Settings → General** uses compact rows for defaults, feature switches and extension options; Side card is no longer a separate page |
 | Reload the interface | `Ctrl+R` |
 | Hide or quit | Close hides to tray; **Exit DSH App** in the tray fully quits |
 
