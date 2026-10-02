@@ -30,7 +30,7 @@ export function readStartupPreference(profile) {
  * @returns Matching background and foreground colors.
  */
 export function startupColors(dark) {
-  return dark ? { background: '#191919', foreground: '#dce0df' } : { background: '#ffffff', foreground: '#253039' }
+  return dark ? { background: '#191919', foreground: '#dce0df', caption: '#2e2d32' } : { background: '#ffffff', foreground: '#253039', caption: '#ededf0' }
 }
 
 /** Adopt the profile preference before local HTML paints, without a backend call.
@@ -48,7 +48,7 @@ export function applyStartupTheme(theme, profile, window, controlsHeight, scheme
   const palette = startupColors(scheme === undefined ? theme.shouldUseDarkColors : scheme === 'dark')
   if (window && !window.isDestroyed()) {
     window.setBackgroundColor(palette.background)
-    window.setTitleBarOverlay({ color: palette.background, symbolColor: palette.foreground, height: controlsHeight })
+    window.setTitleBarOverlay({ color: palette.caption, symbolColor: palette.foreground, height: controlsHeight })
   }
   return palette
 }

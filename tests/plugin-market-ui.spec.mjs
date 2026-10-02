@@ -185,6 +185,43 @@ test('one discovery list merges uncatalogued installs and official features with
   } finally { await ui.close() }
 })
 
+test('official optional plugins precede installed community plugins and show their runtime provenance', async () => {
+  const schedule = '@deepseek-ai/dsh-experimental-schedule-bundle'
+  const voice = '@deepseek-ai/dsh-experimental-voice-input-bundle'
+  const state = emptyState()
+  state.installed = [{ name: 'dsh-sample', version: '1.0.0', enabled: true }]
+  const listed = { ...catalog, plugins: [...catalog.plugins, { packageName: schedule, name: 'Old schedule listing', version: '0.1.7-rc.2', url: 'https://example.com/old-source' }] }
+  const configured = [], toggled = []
+  const ui = await harness(async url => response(url.endsWith('/catalog') ? listed : state), {
+    officialPackages: [
+      { name: schedule, version: '0.2.0-rc.2', optional: true, installed: false, enabled: false, meta: { title: '自动化任务' } },
+      { name: voice, version: '0.2.0-rc.2', optional: true, installed: false, enabled: true, meta: { title: '语音输入' } },
+    ],
+    onConfigure: name => configured.push(name), onSetEnabled: (...args) => toggled.push(args),
+  })
+  try {
+    const cards = () => [...document.querySelectorAll('.dsh-app-market-card')]
+    assert.deepEqual(cards().slice(0, 2).map(card => card.dataset.dshAppMarketPackage), [voice, schedule], 'even a disabled official bundle precedes an installed community plugin')
+    assert.equal(document.querySelectorAll(`[data-dsh-app-market-package="${schedule}"]`).length, 1, 'the runtime and catalog share one official card')
+    const scheduleCard = document.querySelector(`[data-dsh-app-market-package="${schedule}"]`)
+    assert.ok(scheduleCard.textContent.includes('DeepSeek AI 官方'))
+    assert.ok(scheduleCard.textContent.includes('DSH 内置 · 可选'))
+    assert.ok(scheduleCard.textContent.includes('已停用'))
+    assert.ok(scheduleCard.textContent.includes('版本: 0.2.0-rc.2'))
+    assert.equal(scheduleCard.textContent.includes('0.1.7-rc.2'), false, 'an old community catalog version cannot override the installed DSH bundle')
+    assert.equal(scheduleCard.querySelector('a').href, 'https://github.com/deepseek-ai/deepseek-harness')
+    await ui.flush(() => ui.button('详情: 自动化任务').click())
+    assert.deepEqual(configured, [schedule], 'provenance labels preserve official configuration navigation')
+    await ui.flush(() => ui.button('可安装').click())
+    assert.equal(cards()[0].dataset.dshAppMarketPackage, schedule)
+    await ui.flush(() => ui.button('启用').click())
+    assert.deepEqual(toggled, [[schedule, true]], 'shipped optional bundles still use the official enable action')
+    await ui.flush(() => ui.button('已安装').click())
+    assert.equal(cards()[0].dataset.dshAppMarketPackage, voice)
+    assert.equal(cards().some(card => card.dataset.dshAppMarketPackage === schedule), false)
+  } finally { await ui.close() }
+})
+
 test('released locale resolver renders packages with absent or partial metadata', async () => {
   const coreRoot = process.env.DSH_APP_TEST_CORE_ROOT
   assert.ok(coreRoot, 'Set DSH_APP_TEST_CORE_ROOT to the supported released DSH runtime')

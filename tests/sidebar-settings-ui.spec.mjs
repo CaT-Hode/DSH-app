@@ -144,7 +144,7 @@ test('General workbench settings retain dynamic features, typed preferences and 
     assert.doesNotMatch(document.body.textContent, /DSH-better-sidebar|v0\.24\.1|Legacy|Old .*title/)
     assert.equal(ui.label('CSV viewer').checked, true)
     assert.deepEqual(Object.keys(ui.client.dictionaries.zh).sort(), Object.keys(ui.client.dictionaries.en).sort())
-    await ui.toggle('允许模型打开工作台')
+    await ui.toggle('允许 Agent 控制侧栏')
     await ui.toggle('CSV viewer')
     assert.equal(ui.prefs().agentOpenTools, true)
     assert.deepEqual(ui.prefs().viewersEnabled, { 'custom:csv': false })
@@ -174,7 +174,7 @@ test('General workbench settings retain dynamic features, typed preferences and 
     ui.tabs.push({ id: 'new-contribution', title: 'New contribution' }); await ui.registry()
     assert.ok(ui.label('New contribution'))
     await ui.external({ agentOpenTools: false })
-    assert.equal(ui.label('允许模型打开工作台').checked, false)
+    assert.equal(ui.label('允许 Agent 控制侧栏').checked, false)
   } finally { await ui.close() }
 })
 
@@ -189,8 +189,8 @@ test('read failures are visible and retryable, and throwing contributed settings
     await ui.flush(() => [...document.querySelectorAll('button')].find(button => button.textContent === '重新加载').click())
     assert.equal(document.querySelector('fieldset').disabled, false)
     assert.match(document.body.textContent, /扩展设置暂不可用/)
-    assert.ok(ui.label('允许模型打开工作台'))
-    await ui.toggle('允许模型打开工作台')
+    assert.ok(ui.label('允许 Agent 控制侧栏'))
+    await ui.toggle('允许 Agent 控制侧栏')
     assert.equal(ui.prefs().agentOpenTools, true)
     assert.ok(captured.length > 0)
   } finally { await ui.close(); console.error = previousError }
@@ -217,7 +217,7 @@ test('historical malformed Open with values are normalized before rendering and 
     initialPrefs.pluginSettings.editor.openWith = legacy
     const ui = await harness({ initialPrefs })
     try {
-      assert.ok(ui.label('允许模型打开工作台'), 'General settings remain usable with legacy open-map values')
+      assert.ok(ui.label('允许 Agent 控制侧栏'), 'General settings remain usable with legacy open-map values')
       await ui.draft('SSH 主机', 'remote')
       assert.equal(ui.prefs().pluginSettings.editor.openWith.sshHost, 'remote')
       assert.ok(Array.isArray(ui.prefs().pluginSettings.editor.openWith.customEditors))

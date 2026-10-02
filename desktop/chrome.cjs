@@ -10,6 +10,7 @@ const labels = {
     zoomIn: '放大', zoomOut: '缩小', zoomReset: '实际大小', about: '关于 DSH',
     coreUpdate: '更新 DSH', coreUpdateBusy: '正在处理更新…', diagnostics: '诊断与恢复', cost: '费用统计',
     unavailable: '当前没有可用入口，请在侧栏或设置中查看该功能',
+    views: '会话视图',
   },
   en: {
     back: 'Back to previous task', forward: 'Forward to next task', search: 'Search sessions', more: 'More desktop actions',
@@ -20,10 +21,12 @@ const labels = {
     zoomIn: 'Zoom in', zoomOut: 'Zoom out', zoomReset: 'Actual size', about: 'About DSH',
     coreUpdate: 'Update DSH', coreUpdateBusy: 'Processing update…', diagnostics: 'Diagnostics and recovery', cost: 'Cost and usage',
     unavailable: 'No entry is currently available; check the sidebar or settings for this feature',
+    views: 'Conversation view',
   },
 }
 
 const icons = {
+  sidebar: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
   back: '<path d="m14 5-7 7 7 7"/><path d="M7 12h14"/>',
   forward: '<path d="m10 5 7 7-7 7"/><path d="M17 12H3"/>',
   search: '<circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.4 4.4"/>',
@@ -36,21 +39,18 @@ const style = `
 html[data-dsh-desktop-chrome] #root { height: calc(100vh - ${HEIGHT}px) !important; margin-top: ${HEIGHT}px !important; }
 #dsh-desktop-chrome {
   --dsh-chrome-side: #fff; --dsh-chrome-main: #fff; --dsh-chrome-text: #253039;
-  --dsh-chrome-muted: #69747c; --dsh-chrome-hover: #e8eff0; --dsh-chrome-width: 240px;
+  --dsh-chrome-muted: #69747c; --dsh-chrome-hover: #e8eff0;
   position: fixed; inset: 0 0 auto; height: ${HEIGHT}px; z-index: 2147483647;
-  display: grid; grid-template-columns: var(--dsh-chrome-width) minmax(0, 1fr);
+  display: flex;
   color: var(--dsh-chrome-text); font: 400 12px/1.5 var(--dsh-app-font, "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif);
   user-select: none; -webkit-app-region: drag;
 }
 #dsh-desktop-chrome * { box-sizing: border-box; }
 #dsh-desktop-chrome button { -webkit-app-region: no-drag; border: 0; color: inherit; font: inherit; cursor: pointer; }
-#dsh-desktop-chrome .dsh-chrome-left, #dsh-desktop-chrome .dsh-chrome-main {
+#dsh-desktop-chrome .dsh-chrome-main {
   display: flex; align-items: center; min-width: 0; height: ${HEIGHT}px;
 }
-#dsh-desktop-chrome .dsh-chrome-left { gap: 3px; padding: 0 7px; background: var(--dsh-chrome-main); }
-#dsh-desktop-chrome[data-compact="true"] .dsh-chrome-left { justify-content: center; padding: 0; }
-#dsh-desktop-chrome[data-compact="true"] .dsh-chrome-left button:not([data-action="more"]) { display: none; }
-#dsh-desktop-chrome .dsh-chrome-main { gap: 8px; padding: 0 146px 0 14px; background: var(--dsh-chrome-main); }
+#dsh-desktop-chrome .dsh-chrome-main { flex: 1; gap: 8px; padding: 0 146px 0 8px; background: var(--dsh-chrome-main); }
 #dsh-desktop-chrome .dsh-chrome-icon { width: 29px; height: 29px; flex: none; border-radius: 7px; display: grid; place-items: center; background: transparent; }
 #dsh-desktop-chrome .dsh-chrome-icon:hover:not(:disabled), #dsh-desktop-chrome .dsh-chrome-icon[aria-expanded="true"] { background: var(--dsh-chrome-hover); }
 #dsh-desktop-chrome .dsh-chrome-icon:disabled { opacity: .34; cursor: default; }
@@ -62,7 +62,7 @@ html[data-dsh-desktop-chrome] #root { height: calc(100vh - ${HEIGHT}px) !importa
 #dsh-desktop-chrome .dsh-chrome-update[hidden] { display: none; }
 #dsh-desktop-chrome .dsh-chrome-update svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 #dsh-desktop-chrome .dsh-chrome-menu {
-  position: fixed; top: 35px; left: var(--dsh-chrome-menu-left, 108px); width: 244px; max-height: min(650px, calc(100vh - 46px)); overflow: auto;
+  position: fixed; top: 35px; left: var(--dsh-chrome-menu-left, 156px); width: 244px; max-width: calc(100vw - 16px); max-height: min(650px, calc(100vh - 46px)); overflow: auto;
   padding: 6px; border-radius: 10px; background: var(--dsh-chrome-main); color: var(--dsh-chrome-text);
   box-shadow: 0 8px 30px #0002, 0 0 0 1px #0002; -webkit-app-region: no-drag;
 }
@@ -100,11 +100,9 @@ function mountDesktopChrome(ipcRenderer) {
   const bar = document.createElement('header')
   bar.id = 'dsh-desktop-chrome'
   bar.setAttribute('aria-label', 'DSH Desktop')
-  const left = document.createElement('div')
-  left.className = 'dsh-chrome-left'
   const main = document.createElement('div')
   main.className = 'dsh-chrome-main'
-  bar.append(left, main)
+  bar.append(main)
   document.body.append(bar)
 
   const locale = () => document.documentElement.lang.toLowerCase().startsWith('en') ? labels.en : labels.zh
@@ -118,10 +116,12 @@ function mountDesktopChrome(ipcRenderer) {
     host.append(element)
     return element
   }
-  const back = button('back', 'back', left)
-  const forward = button('forward', 'forward', left)
-  button('search', 'search', left)
-  const more = button('more', 'more', left)
+  const back = button('back', 'back', main)
+  const forward = button('forward', 'forward', main)
+  const sidebarToggle = button('sidebar', 'sidebar', main)
+  sidebarToggle.setAttribute('aria-controls', 'dsh-app-session-sidebar')
+  button('search', 'search', main)
+  const more = button('more', 'more', main)
   more.setAttribute('aria-haspopup', 'menu')
   more.setAttribute('aria-expanded', 'false')
   const spacer = document.createElement('span')
@@ -163,6 +163,37 @@ function mountDesktopChrome(ipcRenderer) {
   menu.setAttribute('role', 'menu')
   menu.hidden = true
   bar.append(menu)
+  const viewItems = document.createElement('div')
+  viewItems.setAttribute('role', 'group')
+  viewItems.hidden = true
+  menu.append(viewItems)
+  const viewRule = document.createElement('div')
+  viewRule.className = 'dsh-chrome-rule'
+  viewRule.setAttribute('role', 'separator')
+  viewRule.hidden = true
+  menu.append(viewRule)
+  let activeSessionId
+  window.addEventListener('dsh-app:conversation-view-state', event => {
+    activeSessionId = event.detail?.sessionId
+    const views = Array.isArray(event.detail?.views) ? event.detail.views.filter(row => typeof row.id === 'string' && typeof row.label === 'string') : []
+    viewItems.replaceChildren()
+    viewItems.hidden = viewRule.hidden = views.length === 0
+    viewItems.setAttribute('aria-label', locale().views)
+    for (const view of views) {
+      const item = document.createElement('button')
+      item.type = 'button'
+      item.setAttribute('role', 'menuitemradio')
+      item.setAttribute('aria-checked', String(view.id === event.detail.active))
+      item.dataset.action = `view:${view.id}`
+      const label = document.createElement('span'), mark = document.createElement('span')
+      label.textContent = view.label
+      mark.setAttribute('aria-hidden', 'true')
+      mark.textContent = view.id === event.detail.active ? '✓' : ''
+      item.append(label, mark)
+      viewItems.append(item)
+    }
+    scheduleSync()
+  })
   const menuButtons = new Map()
   groups.forEach((group, index) => {
     if (index > 0) {
@@ -193,7 +224,7 @@ function mountDesktopChrome(ipcRenderer) {
   const selected = () => [...document.querySelectorAll('[data-row-key^="session:"][aria-selected="true"]')]
     .find(row => row.getBoundingClientRect().height > 0)
   const updateNavigation = () => {
-    const current = rowId(selected())
+    const current = activeSessionId ?? rowId(selected())
     if (current && history[index] !== current) {
       history = history.slice(0, index + 1)
       history.push(current)
@@ -230,6 +261,13 @@ function mountDesktopChrome(ipcRenderer) {
   }
   const openHistory = offset => {
     const next = index + offset
+    if (next < 0 || next >= history.length) return
+    if (document.documentElement.dataset.dshAppUi === 'true') {
+      index = next
+      window.dispatchEvent(new CustomEvent('dsh-app:conversation-session-open', { detail: { sessionId: history[next] } }))
+      setTimeout(updateNavigation, 100)
+      return
+    }
     const row = rowFor(history[next])
     if (!row) return
     index = next
@@ -241,6 +279,10 @@ function mountDesktopChrome(ipcRenderer) {
     if (id === 'more') { menu.hidden = !menu.hidden; more.setAttribute('aria-expanded', String(!menu.hidden)); if (!menu.hidden) menu.querySelector('button')?.focus(); return }
     menu.hidden = true
     more.setAttribute('aria-expanded', 'false')
+    if (id.startsWith('view:')) {
+      window.dispatchEvent(new CustomEvent('dsh-app:conversation-view-select', { detail: { view: id.slice(5) } }))
+      return
+    }
     if (document.documentElement.dataset.dshAppUi === 'true' && ['new', 'sidebar', 'search', 'cost', 'settings', 'plugins', 'experts', 'skills', 'connector', 'schedule', 'im'].includes(id)) {
       window.dispatchEvent(new CustomEvent('dsh-app:action', { detail: { action: id } }))
       return
@@ -303,34 +345,27 @@ function mountDesktopChrome(ipcRenderer) {
 
   const updateLocale = () => {
     const text = locale()
-    for (const element of bar.querySelectorAll('button[data-action]')) element.title = element.ariaLabel = text[element.dataset.action]
+    for (const element of bar.querySelectorAll('button[data-action]')) if (!element.dataset.action.startsWith('view:')) element.title = element.ariaLabel = text[element.dataset.action]
+    viewItems.setAttribute('aria-label', text.views)
     for (const [id, element] of menuButtons) element.textContent = text[id]
     renderCoreUpdate()
   }
-  let sidebarObserved
   let lastTheme
-  const sidebarResize = new ResizeObserver(() => syncAppearance())
   const syncAppearance = () => {
     const frame = document.querySelector('[data-shell-overlay]')?.parentElement
     const sidebar = frame?.firstElementChild
-    if (sidebar && sidebar !== sidebarObserved) {
-      sidebarResize.disconnect()
-      sidebarResize.observe(sidebar)
-      sidebarObserved = sidebar
-    }
     if (sidebar) {
-      const width = Math.round(sidebar.getBoundingClientRect().right)
-      bar.style.setProperty('--dsh-chrome-width', `${width}px`)
-      bar.style.setProperty('--dsh-chrome-menu-left', `${width < 170 ? 8 : 108}px`)
-      bar.dataset.compact = String(width < 170)
+      const collapsed = frame.hasAttribute('data-sidebar-collapsed')
+      sidebarToggle.setAttribute('aria-expanded', String(!collapsed))
     }
+    bar.style.setProperty('--dsh-chrome-menu-left', `${Math.max(8, Math.min(window.innerWidth - 252, more.getBoundingClientRect().left))}px`)
     const scheme = getComputedStyle(document.documentElement).colorScheme.includes('dark') ? 'dark' : 'light'
     const source = document.documentElement.getAttribute('data-ds-theme-source')
     document.documentElement.dataset.dshDesktopTheme = scheme
     const theme = getComputedStyle(document.body)
-    const color = theme.getPropertyValue('--dsh-app-surface').trim() || theme.getPropertyValue('--dsw-alias-bg-base').trim() || theme.backgroundColor
+    const color = theme.getPropertyValue('--dsh-app-chrome').trim() || theme.getPropertyValue('--dsw-alias-bg-base').trim() || theme.backgroundColor
     if (color && color !== 'rgba(0, 0, 0, 0)') bar.style.setProperty('--dsh-chrome-main', color)
-    for (const [target, source] of [['text', '--dsw-alias-label-primary'], ['muted', '--dsw-alias-label-tertiary'], ['hover', '--dsw-alias-interactive-bg-hover']]) {
+    for (const [target, source] of [['text', '--dsw-alias-label-primary'], ['muted', '--dsw-alias-label-tertiary'], ['hover', '--dsh-app-hover']]) {
       const value = theme.getPropertyValue(source).trim()
       if (value) bar.style.setProperty(`--dsh-chrome-${target}`, value)
     }
@@ -346,7 +381,8 @@ function mountDesktopChrome(ipcRenderer) {
     requestAnimationFrame(() => { syncQueued = false; updateNavigation(); syncAppearance() })
   }
   window.addEventListener('dsh-app:theme-state', scheduleSync)
-  new MutationObserver(scheduleSync).observe(document.getElementById('root') ?? document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-selected'] })
+  window.addEventListener('resize', scheduleSync)
+  new MutationObserver(scheduleSync).observe(document.getElementById('root') ?? document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-selected', 'data-sidebar-collapsed', 'data-dragging', 'data-animating'] })
   const restoreChromeAccess = () => {
     scheduleSync()
   }

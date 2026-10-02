@@ -40,6 +40,8 @@
 .dsh-app-market-card h3 { margin: 0 0 2px; font: 500 14px/1.45 var(--dsh-app-font); overflow-wrap: anywhere; }
 .dsh-app-market-card p { flex: 1; margin: 0; min-height: 42px; color: var(--dsh-app-muted); font-size: 13px; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .dsh-app-market-card small { color: var(--dsh-app-muted); font-size: 12px; overflow-wrap: anywhere; }
+.dsh-app-market-origin { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; }
+.dsh-app-market-origin-badge { padding: 2px 7px; border-radius: 5px; background: var(--dsh-app-hover); color: var(--dsh-app-label); font-size: 12px; line-height: 18px; }
 .dsh-app-market-card footer { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .dsh-app-market-card footer a { margin-left: auto; color: var(--dsh-app-muted); font-size: 12px; text-decoration: none; }
 .dsh-app-market-card footer a:hover { text-decoration: underline; }

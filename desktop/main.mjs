@@ -789,7 +789,7 @@ async function main() {
     title: 'DSH', width: 1440, height: 920, minWidth: 880, minHeight: 600,
     show: !process.argv.includes('--open-web'),
     icon: asset('DSH.ico'), backgroundColor: palette.background,
-    titleBarStyle: 'hidden', titleBarOverlay: { color: palette.background, symbolColor: palette.foreground, height: WINDOW_CONTROLS_HEIGHT },
+    titleBarStyle: 'hidden', titleBarOverlay: { color: palette.caption, symbolColor: palette.foreground, height: WINDOW_CONTROLS_HEIGHT },
     webPreferences: { preload: fileURLToPath(new URL('./preload.cjs', import.meta.url)), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true },
   })
   const refreshStartupTheme = () => {

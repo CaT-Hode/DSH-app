@@ -1,0 +1,713 @@
+/* DSH App owns the presentation of the integrated workbench. The engine's
+   module classes remain stable behavior hooks for viewers and split panes. */
+html[data-dsh-app-ui] body {
+  --dsh-workbench-motion-duration: 200ms;
+  --dsh-workbench-motion-ease: cubic-bezier(.2, .75, .25, 1);
+  --dsh-workbench-summary-width: 350px;
+  --dsh-workbench-surface: var(--dsh-app-panel, var(--dsw-alias-bg-base, #fff));
+  --dsh-workbench-text: var(--dsh-app-label, var(--dsw-alias-label-primary, #242424));
+  --dsh-workbench-muted: var(--dsh-app-muted, var(--dsw-alias-label-tertiary, #777));
+  --dsh-workbench-line: var(--dsh-app-border, var(--dsw-alias-border-l3, #dedede));
+  --dsh-workbench-hover: var(--dsh-app-hover, var(--dsw-alias-interactive-bg-hover, #eee));
+  --dsh-workbench-subtle: color-mix(in srgb, var(--dsh-workbench-text) 3.5%, var(--dsh-workbench-surface));
+  --dsh-workbench-selected: color-mix(in srgb, var(--dsh-workbench-text) 8%, var(--dsh-workbench-surface));
+  --dsh-workbench-focus: var(--dsh-workbench-text);
+  --dsh-workbench-error: var(--dsw-alias-state-error-primary, #b33b37);
+  --dsh-workbench-success: var(--dsw-alias-state-success-primary, #25804f);
+  --dsh-workbench-warning: var(--dsh-app-warning, #b88228);
+  --dsh-workbench-font: var(--dsh-app-font, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif);
+  --dsh-workbench-mono: var(--dsh-app-code-font, "Cascadia Code", Consolas, ui-monospace, monospace);
+  --dsh-workbench-shadow: 0 8px 28px #0002;
+}
+
+/* Rebase the engine's theme tokens inside its surfaces, including portals.
+   The app's light/dark palette is the sole source of workbench chrome. */
+html[data-dsh-app-ui] :is(
+  [data-dsh-native-tab-host], [data-dsh-better-sidebar],
+  [data-sidebar-right-panel],
+  .ao083W_window, .nArs4W_mermaidModal, .nArs4W_uploadDropMask,
+  .nArs4W_uploadDropZone, .nArs4W_uploadDropChatHint, .nArs4W_selectionPopup,
+  .d2hvtW_popCard, ._2vuxea_popupDialog, ._2vuxea_pluginModal,
+  [data-dsh-app-workbench-portal], [data-dockkit-tab-menu]
+) {
+  --dsw-alias-bg-base: var(--dsh-workbench-surface);
+  --dsw-alias-bg-layer-1: var(--dsh-workbench-surface);
+  --dsw-alias-bg-layer-2: var(--dsh-workbench-subtle);
+  --dsw-alias-bg-layer-3: var(--dsh-workbench-subtle);
+  --dsw-alias-border-l1: var(--dsh-workbench-line);
+  --dsw-alias-border-l2: var(--dsh-workbench-line);
+  --dsw-alias-border-l3: var(--dsh-workbench-line);
+  --dsw-alias-border-l4: var(--dsh-workbench-line);
+  --dsw-alias-hairline: var(--dsh-workbench-line);
+  --dsw-alias-label-primary: var(--dsh-workbench-text);
+  --dsw-alias-label-secondary: var(--dsh-workbench-muted);
+  --dsw-alias-label-tertiary: var(--dsh-workbench-muted);
+  --dsw-alias-interactive-bg-hover: var(--dsh-workbench-hover);
+  --dsw-alias-interactive-bg-active: var(--dsh-workbench-selected);
+  --dsw-alias-interactive-bg-hover-accent: var(--dsh-workbench-selected);
+  --dsw-alias-brand-primary: var(--dsh-workbench-text);
+  --dsw-alias-state-business-primary: var(--dsh-workbench-text);
+  --dsw-alias-state-business-tertiary: var(--dsh-workbench-selected);
+  --dsw-alias-button-ghost-active-fill: var(--dsh-workbench-selected);
+  --dsw-alias-button-ghost-active-hover: var(--dsh-workbench-hover);
+  --dsw-alias-button-ghost-active-border: var(--dsh-workbench-line);
+  --dsw-font-family: var(--dsh-workbench-font);
+  --dsw-font-mono: var(--dsh-workbench-mono);
+  --ds-font-family-code: var(--dsh-workbench-mono);
+  --dsw-font-xxxs-11: 400 12px/1.5 var(--dsh-workbench-font);
+  --dsw-font-xxxs-strong-11: 500 12px/1.5 var(--dsh-workbench-font);
+  --dsw-font-xxs-12: 400 13px/1.5 var(--dsh-workbench-font);
+  --dsw-font-xxs-strong-12: 500 13px/1.5 var(--dsh-workbench-font);
+  --dsw-font-xs-13: 400 14px/1.65 var(--dsh-workbench-font);
+  --dsw-font-xs-strong-13: 500 14px/1.65 var(--dsh-workbench-font);
+  --dsw-font-s-13: 400 13px/1.5 var(--dsh-workbench-font);
+  --dsw-font-s-14: 400 14px/1.65 var(--dsh-workbench-font);
+  --dsw-font-s-strong-14: 500 14px/1.65 var(--dsh-workbench-font);
+  --dsw-shadow-lv2: var(--dsh-workbench-shadow);
+  --dsw-shadow-lv3: var(--dsh-workbench-shadow);
+  color: var(--dsh-workbench-text);
+  font: 400 13px/1.5 var(--dsh-workbench-font);
+  font-kerning: normal;
+  scrollbar-color: color-mix(in srgb, var(--dsh-workbench-muted) 38%, transparent) transparent;
+  scrollbar-width: thin;
+}
+
+html[data-dsh-app-ui] :is([data-dsh-native-tab-host]) {
+  container: dsh-workbench / inline-size;
+  background: var(--dsh-workbench-surface);
+  min-width: 0;
+}
+html[data-dsh-app-ui] :is([data-dsh-native-tab-host], .ao083W_window) *,
+html[data-dsh-app-ui] [data-dsh-app-workbench-portal] * { box-sizing: border-box; }
+html[data-dsh-app-ui] :is([data-dsh-native-tab-host], .ao083W_window)
+  :is(button, input, select, textarea) { font-family: var(--dsh-workbench-font); }
+html[data-dsh-app-ui] :is([data-dsh-native-tab-host], .ao083W_window)
+  :is(pre, code, kbd, samp, .cm-editor, .cm-content) { font-family: var(--dsh-workbench-mono); }
+
+/* One compact, neutral control language across every viewer. */
+html[data-dsh-app-ui] :is(
+  .nArs4W_toggleButton, .nArs4W_iconButton,
+  .nArs4W_tabBarPlus, .U62vHa_iconButton, .d2hvtW_controlBtn,
+  ._4BEzFa_sidechatIconBtn, .ao083W_close, .nArs4W_tocButton
+) {
+  color: var(--dsh-workbench-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  box-shadow: none;
+  width: 30px;
+  height: 30px;
+  padding: 5px;
+}
+html[data-dsh-app-ui] :is(
+  .nArs4W_toggleButton, .nArs4W_iconButton,
+  .nArs4W_tabBarPlus, .U62vHa_iconButton, .d2hvtW_controlBtn,
+  ._4BEzFa_sidechatIconBtn, .ao083W_close, .nArs4W_tocButton
+):hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--dsh-workbench-text);
+  background: var(--dsh-workbench-hover);
+}
+html[data-dsh-app-ui] :is(
+  .nArs4W_editorTreeToggleActive, .U62vHa_iconButtonActive,
+  .d2hvtW_controlBtnActive, .U62vHa_chipActive
+) { color: var(--dsh-workbench-text); background: var(--dsh-workbench-selected); }
+html[data-dsh-app-ui] :is(
+  [data-dsh-native-tab-host], .ao083W_window,
+  [data-dsh-app-workbench-portal]
+) :is(button, input, select, textarea, a, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--dsh-workbench-focus);
+  outline-offset: -2px;
+}
+html[data-dsh-app-ui] :is(
+  [data-dsh-native-tab-host], .ao083W_window,
+  [data-dsh-app-workbench-portal]
+) :is(button, input, select, textarea):disabled { opacity: .42; cursor: default; }
+html[data-dsh-app-ui] :is(.SyUHSa_files, .SyUHSa_changes, .SyUHSa_tasks,
+  .SyUHSa_terminal, .SyUHSa_browser, .SyUHSa_sidechat) { color: currentColor; }
+
+/* The official native dock hosts integrated tabs, including its start page.
+   Use its public data attributes so this survives native CSS module hashes. */
+html[data-dsh-app-ui] [data-sidebar-right-panel] [data-dockkit-strip] {
+  box-sizing: border-box;
+  height: 44px;
+  padding: 6px 10px;
+  gap: 5px;
+  border-bottom: 1px solid var(--dsh-workbench-line);
+}
+html[data-dsh-app-ui] [data-sidebar-right-panel] [data-dockkit-strip-chrome] { gap: 3px; height: 32px; }
+html[data-dsh-app-ui] [data-sidebar-right-panel] [data-dockkit-tab] {
+  height: 32px;
+  min-width: 66px;
+  max-width: 210px;
+  border-radius: 8px;
+  padding-inline: 10px;
+  font: 400 13px/1.5 var(--dsh-workbench-font);
+  color: var(--dsh-workbench-muted);
+}
+html[data-dsh-app-ui] [data-sidebar-right-panel] [data-dockkit-tab][aria-selected="true"] { background: var(--dsh-workbench-selected); color: var(--dsh-workbench-text); }
+html[data-dsh-app-ui] [data-sidebar-right-panel] [data-dockkit-tab][data-dockkit-tab-quiet] { background: transparent; }
+html[data-dsh-app-ui] [data-sidebar-right-panel] [data-dockkit-tab-title] svg { filter: grayscale(1); }
+html[data-dsh-app-ui] [data-sidebar-right-panel] :is([data-dockkit-add-tab], [data-dockkit-split-button], [data-sidebar-right-mode], [data-sidebar-right-toggle]) { width: 30px; height: 30px; padding: 6px; border-radius: 7px; color: var(--dsh-workbench-muted); }
+html[data-dsh-app-ui] [data-sidebar-right-panel] [data-dockkit-tab-close] { top: 6px; border-radius: 5px; }
+html[data-dsh-app-ui] [data-sidebar-right-panel] [data-dockkit-pane] { background: var(--dsh-workbench-surface); }
+html[data-dsh-app-ui] [data-sidebar-right-panel] [data-dockkit-float] { border: 1px solid var(--dsh-workbench-line); border-radius: 12px; background: var(--dsh-workbench-surface); box-shadow: var(--dsh-workbench-shadow); }
+html[data-dsh-app-ui] [data-sidebar-right-panel] [data-dockkit-dock-scrim] { backdrop-filter: none; background: color-mix(in srgb, var(--dsh-workbench-surface) 85%, transparent); }
+html[data-dsh-app-ui] [data-sidebar-right-panel] :is(button, [tabindex]):focus-visible { outline: 2px solid var(--dsh-workbench-focus); outline-offset: -2px; }
+html[data-dsh-app-ui] [data-sidebar-right-guide] { --dsl-guide-entry-radius: 8px; justify-content: flex-start; align-items: stretch; padding: 22px 14px; gap: 5px; font: 400 13px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] [data-sidebar-right-guide]::after { display: none; }
+html[data-dsh-app-ui] [data-sidebar-right-guide] .geFEbW_hero { display: none; }
+html[data-dsh-app-ui] [data-sidebar-right-guide] .geFEbW_entryCell { width: 100%; }
+html[data-dsh-app-ui] [data-sidebar-right-guide-entry] { width: 100%; min-height: 43px; gap: 10px; padding: 10px 12px; border: 0; border-radius: 8px; background: transparent; }
+html[data-dsh-app-ui] [data-sidebar-right-guide-entry]:hover { background: var(--dsh-workbench-hover); }
+html[data-dsh-app-ui] [data-sidebar-right-guide-entry] .geFEbW_entryIcon { width: 20px; height: 20px; color: var(--dsh-workbench-muted); }
+html[data-dsh-app-ui] [data-sidebar-right-guide-entry] .geFEbW_entryTitle { font: 400 13px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] [data-sidebar-right-guide-entry] .geFEbW_entryDescription { font: 400 12px/1.5 var(--dsh-workbench-font); color: var(--dsh-workbench-muted); }
+html[data-dsh-app-ui] :is([data-sidebar-right-guide-entry], [data-dockkit-tab-title], .dsh-app-workbench-entry) svg [fill]:not([fill="none"]) { fill: currentColor; }
+html[data-dsh-app-ui] :is([data-sidebar-right-guide-entry], [data-dockkit-tab-title], .dsh-app-workbench-entry) svg [stroke]:not([stroke="none"]) { stroke: currentColor; }
+
+/* The header launcher and Web-profile preview are native DSH App surfaces. */
+.dsh-app-workbench-menu { position: relative; flex: none; color: var(--dsh-workbench-text); font: 400 13px/1.5 var(--dsh-workbench-font); }
+.dsh-app-tools-page { box-sizing: border-box; max-width: 100%; min-height: 100%; padding: clamp(20px, 5vw, 44px); color: var(--dsh-workbench-text); }
+.dsh-app-tools-page h2 { margin: 0 0 20px; font-size: 15px; font-weight: 600; }
+.dsh-app-tools-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
+.dsh-app-tools-grid > button { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; min-height: 48px; padding: 12px 14px; border: 0; border-radius: 10px; background: var(--dsh-workbench-subtle); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.dsh-app-tools-grid > button:hover { background: var(--dsh-workbench-hover); }
+.dsh-app-tools-grid > button > span:nth-child(2) { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dsh-app-tool-icon { display: flex; align-items: center; justify-content: center; width: 20px; flex: none; color: var(--dsh-workbench-muted); }
+.dsh-app-tools-grid > button > svg { color: var(--dsh-workbench-muted); flex: none; }
+.dsh-app-session-information { box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; min-width: 0; max-width: 100%; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--dsh-workbench-line); color: var(--dsh-workbench-muted); }
+.dsh-app-session-information:empty { display: none; }
+.dsh-app-session-information-dock { box-sizing: border-box; flex: none; margin: 0; padding: 12px 16px; }
+.dsh-app-session-information > div { min-width: 0; max-width: 100%; }
+.dsh-app-session-information > div:empty,
+.dsh-app-session-information > div:has(> [hidden]) { display: none; }
+.dsh-app-session-information button { color: inherit; font: inherit; }
+.dsh-app-session-information [data-dsh-app-session-information-item="subagent-catalog"] { order: 0; }
+.dsh-app-session-information [data-dsh-app-session-information-item="job-list"] { order: 1; }
+.dsh-app-session-information [data-dsh-app-session-information-item="agent-preset"] { order: 2; }
+.dsh-app-session-information [data-dsh-app-session-information-item="agent-team"] { order: 3; }
+.dsh-app-information-row { position: relative; min-width: 0; border-radius: 8px; }
+.dsh-app-information-row[hidden] { display: none; }
+.dsh-app-information-presentation { display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 37px; padding: 7px 8px; font-size: 12px; line-height: 1.5; }
+.dsh-app-information-presentation > svg { flex: none; color: var(--dsh-workbench-muted); }
+.dsh-app-information-label { flex: none; }
+.dsh-app-information-value { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dsh-workbench-text); text-align: right; }
+.dsh-app-information-row[data-running] .dsh-app-information-value::before { content: ""; display: inline-block; width: 5px; height: 5px; margin: 0 6px 2px 0; border-radius: 50%; background: currentColor; }
+.dsh-app-information-control { position: absolute; inset: 0; }
+.dsh-app-information-control > div { position: relative; width: 100%; height: 100%; }
+/* Present one information row; native controls own its hit area, focus and
+   menus. Their header-specific icons and text never form a second visual UI. */
+.dsh-app-information-control > button,
+.dsh-app-information-control > div > button:first-child { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; padding: 0; margin: 0; border: 0; opacity: 0; cursor: pointer; }
+.dsh-app-information-control > div > button:first-child > * { display: none; }
+.dsh-app-information-row:has(.dsh-app-information-control button):hover,
+.dsh-app-information-row:has(.dsh-app-information-control button[aria-expanded="true"]) { background: var(--dsh-workbench-hover); }
+.dsh-app-information-row:focus-within { outline: 2px solid var(--dsh-workbench-focus); outline-offset: -2px; }
+.dsh-app-sidebar-summary .dsh-app-session-information { margin: 0; padding: 10px 0 12px; }
+@container dsh-workbench (width < 440px) { .dsh-app-tools-grid { grid-template-columns: minmax(0, 1fr); } }
+.dsh-app-workbench-menu *, .dsh-app-web-preview * { box-sizing: border-box; }
+.dsh-app-workbench-trigger { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; min-height: 32px; border: 0; border-radius: 8px; background: transparent; color: var(--dsh-workbench-muted); font: inherit; cursor: pointer; }
+.dsh-app-workbench-trigger:hover, .dsh-app-workbench-trigger[aria-expanded="true"] { background: var(--dsh-workbench-hover); color: var(--dsh-workbench-text); }
+.dsh-app-workbench-trigger:has(> svg) { width: 30px; min-height: 30px; padding: 6px; }
+.dsh-app-workbench-trigger:focus-visible, .dsh-app-workbench-popover button:focus-visible { outline: 2px solid var(--dsh-workbench-focus); outline-offset: -2px; }
+.dsh-app-workbench-visibility { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 30px; height: 30px; padding: 6px; border: 0; border-radius: 7px; background: transparent; color: var(--dsh-workbench-muted); cursor: pointer; }
+.dsh-app-workbench-visibility:hover, .dsh-app-workbench-visibility[aria-pressed="true"] { color: var(--dsh-workbench-text); background: var(--dsh-workbench-hover); }
+.dsh-app-workbench-visibility:focus-visible { outline: 2px solid var(--dsh-workbench-focus); outline-offset: -2px; }
+.dsh-app-workbench-visibility > svg { display: block; width: 17px; height: 17px; flex: none; }
+html[data-dsh-app-ui] [data-sidebar-right-expand] { display: none !important; }
+.dsh-app-workbench-new { display: inline-flex; align-items: center; justify-content: center; flex: none; position: relative; width: 30px; height: 30px; padding: 6px; margin-left: 7px; border: 0; border-radius: 7px; background: transparent; color: var(--dsh-workbench-muted); cursor: pointer; }
+.dsh-app-workbench-new::before { content: ""; position: absolute; top: 7px; bottom: 7px; left: -5px; width: 1px; background: var(--dsh-workbench-line); }
+.dsh-app-workbench-new:hover { color: var(--dsh-workbench-text); background: var(--dsh-workbench-hover); }
+.dsh-app-workbench-new:focus-visible { outline: 2px solid var(--dsh-workbench-focus); outline-offset: -2px; }
+.dsh-app-workbench-new svg, .dsh-app-workbench-trigger > svg { display: block; width: 17px; height: 17px; flex: none; }
+.dsh-app-workbench-popover { position: absolute; z-index: 80; top: calc(100% + 8px); right: 0; width: 244px; max-width: calc(100vw - 32px); padding: 7px; border: 1px solid var(--dsh-workbench-line); border-radius: 12px; background: var(--dsh-workbench-surface); box-shadow: var(--dsh-workbench-shadow); }
+.dsh-app-workbench-placement { display: flex; align-items: center; gap: 3px; padding: 3px; margin-bottom: 6px; border-radius: 8px; background: var(--dsh-workbench-subtle); }
+.dsh-app-workbench-placement button { flex: 1; min-width: 0; min-height: 30px; padding: 5px 7px; border: 0; border-radius: 6px; background: transparent; color: var(--dsh-workbench-muted); font: inherit; font-size: 12px; cursor: pointer; }
+.dsh-app-workbench-placement button[aria-pressed="true"] { background: var(--dsh-workbench-selected); color: var(--dsh-workbench-text); }
+.dsh-app-workbench-entry { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px; padding: 7px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--dsh-workbench-text); font: inherit; text-align: left; cursor: pointer; }
+.dsh-app-workbench-entry > span { display: inline-flex; align-items: center; justify-content: center; width: 18px; flex: none; color: var(--dsh-workbench-muted); }
+.dsh-app-workbench-entry:hover { background: var(--dsh-workbench-hover); }
+.dsh-app-workbench-entry:last-of-type { margin-top: 5px; color: var(--dsh-workbench-muted); }
+.dsh-app-workbench-popover > p { margin: 7px 10px; color: var(--dsh-workbench-error); font-size: 12px; overflow-wrap: anywhere; }
+.dsh-app-web-preview { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; height: 100%; color: var(--dsh-workbench-text); background: var(--dsh-workbench-surface); font: 400 13px/1.5 var(--dsh-workbench-font); }
+.dsh-app-web-toolbar { display: flex; align-items: center; gap: 5px; flex: none; min-height: 48px; margin: 0; padding: 8px 10px; border-bottom: 1px solid var(--dsh-workbench-line); }
+.dsh-app-web-toolbar input { flex: 1; min-width: 0; height: 32px; padding: 6px 10px; border: 1px solid var(--dsh-workbench-line); border-radius: 8px; background: var(--dsh-workbench-subtle); color: var(--dsh-workbench-text); font: inherit; }
+.dsh-app-web-toolbar input::placeholder { color: var(--dsh-workbench-muted); }
+.dsh-app-web-toolbar input[aria-invalid="true"] { border-color: var(--dsh-workbench-error); }
+.dsh-app-web-toolbar :is(button, a) { display: inline-flex; align-items: center; justify-content: center; flex: none; min-width: 30px; min-height: 32px; border: 0; border-radius: 7px; padding: 5px 7px; background: transparent; color: var(--dsh-workbench-muted); font: inherit; text-decoration: none; cursor: pointer; }
+.dsh-app-web-toolbar :is(button, a):hover { background: var(--dsh-workbench-hover); color: var(--dsh-workbench-text); }
+.dsh-app-web-toolbar :is(button, a):disabled { opacity: .4; cursor: default; }
+.dsh-app-web-toolbar :is(button, a, input):focus-visible { outline: 2px solid var(--dsh-workbench-focus); outline-offset: -2px; }
+.dsh-app-web-preview iframe { flex: 1; min-width: 0; min-height: 0; width: 100%; border: 0; background: var(--dsh-workbench-surface); }
+.dsh-app-web-empty { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 8px; padding: 24px; text-align: center; }
+.dsh-app-web-empty strong { font-size: 15px; font-weight: 500; }
+.dsh-app-web-empty span { max-width: 260px; color: var(--dsh-workbench-muted); font-size: 13px; line-height: 1.6; }
+.dsh-app-web-error { flex: none; margin: 0; padding: 7px 12px; font-size: 12px; color: var(--dsh-workbench-error); }
+.dsh-app-web-preview footer { flex: none; padding: 7px 12px; border-top: 1px solid var(--dsh-workbench-line); color: var(--dsh-workbench-muted); font-size: 11px; line-height: 1.6; }
+
+/* The resting card keeps outputs and agent activity near the conversation. */
+html[data-dsh-app-ui] .dsh-app-sidebar-summary { min-width: 0; padding: 12px 14px 0; color: var(--dsh-workbench-text); font: 400 13px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] .dsh-app-sidebar-summary * { box-sizing: border-box; }
+html[data-dsh-app-ui] .dsh-app-sidebar-summary > header { display: flex; align-items: center; justify-content: space-between; min-height: 28px; gap: 12px; }
+html[data-dsh-app-ui] .dsh-app-sidebar-summary > header > span { font-weight: 500; }
+html[data-dsh-app-ui] .dsh-app-summary-outputs { display: flex; flex-direction: column; gap: 1px; max-height: 218px; overflow-y: auto; padding: 5px 0 10px; }
+html[data-dsh-app-ui] .dsh-app-summary-outputs button { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 31px; padding: 5px 6px; border: 0; border-radius: 7px; background: transparent; color: var(--dsh-workbench-text); font: inherit; text-align: left; cursor: pointer; }
+html[data-dsh-app-ui] .dsh-app-summary-outputs button:hover { background: var(--dsh-workbench-hover); }
+html[data-dsh-app-ui] .dsh-app-summary-outputs svg { flex: none; color: var(--dsh-workbench-muted); }
+html[data-dsh-app-ui] .dsh-app-summary-outputs button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-dsh-app-ui] .dsh-app-summary-empty { margin: 5px 0 14px; color: var(--dsh-workbench-muted); font-size: 12px; line-height: 1.6; }
+
+/* Side Chat owns its small management controls while the retained transcript
+   and composer continue using the integrated engine below. */
+html[data-dsh-app-ui] .dsh-app-sidechat { display: flex; flex-direction: column; height: 100%; min-height: 0; min-width: 0; color: var(--dsh-workbench-text); background: var(--dsh-workbench-surface); font: 400 13px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] .dsh-app-sidechat * { box-sizing: border-box; }
+html[data-dsh-app-ui] .dsh-app-sidechat :is(button, input, textarea) { font: inherit; }
+html[data-dsh-app-ui] .dsh-app-sidechat button { display: inline-flex; align-items: center; justify-content: center; min-height: 27px; padding: 4px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--dsh-workbench-muted); cursor: pointer; }
+html[data-dsh-app-ui] .dsh-app-sidechat button:hover:not(:disabled) { color: var(--dsh-workbench-text); background: var(--dsh-workbench-hover); }
+html[data-dsh-app-ui] .dsh-app-sidechat button[aria-expanded="true"] { color: var(--dsh-workbench-text); background: var(--dsh-workbench-selected); }
+html[data-dsh-app-ui] .dsh-app-sidechat button:disabled { opacity: .4; cursor: default; }
+html[data-dsh-app-ui] :is(.dsh-app-sidechat, .dsh-app-sidebar-summary) :is(button, input, textarea):focus-visible { outline: 2px solid var(--dsh-workbench-focus); outline-offset: -2px; }
+html[data-dsh-app-ui] .dsh-app-sidechat-header { display: flex; flex: none; align-items: center; justify-content: space-between; min-height: 46px; gap: 10px; padding: 8px 12px; }
+html[data-dsh-app-ui] .dsh-app-sidechat-identity { display: flex; align-items: center; gap: 8px; min-width: 0; }
+html[data-dsh-app-ui] .dsh-app-sidechat-identity strong { min-width: 0; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-dsh-app-ui] .dsh-app-sidechat-identity > span { flex: none; color: var(--dsh-workbench-muted); font-size: 11px; }
+html[data-dsh-app-ui] .dsh-app-sidechat-identity .is-running::before { display: inline-block; content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; margin-right: 5px; vertical-align: 2px; }
+html[data-dsh-app-ui] .dsh-app-sidechat-actions { display: flex; flex: none; gap: 2px; }
+html[data-dsh-app-ui] :is(.dsh-app-sidechat-toolbar, .dsh-app-sidechat-footer) { display: flex; flex: none; align-items: center; flex-wrap: wrap; gap: 3px; padding: 5px 10px; font-size: 12px; }
+html[data-dsh-app-ui] .dsh-app-sidechat-toolbar { border-bottom: 1px solid var(--dsh-workbench-line); }
+html[data-dsh-app-ui] .dsh-app-sidechat-model { flex: 1; min-width: 64px; color: var(--dsh-workbench-muted); font-size: 11px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-dsh-app-ui] .dsh-app-sidechat-rename { display: flex; align-items: center; flex: none; gap: 4px; padding: 9px 12px; border-bottom: 1px solid var(--dsh-workbench-line); }
+html[data-dsh-app-ui] .dsh-app-sidechat input { min-height: 30px; min-width: 0; border: 1px solid var(--dsh-workbench-line); border-radius: 7px; padding: 5px 9px; color: var(--dsh-workbench-text); background: var(--dsh-workbench-subtle); }
+html[data-dsh-app-ui] .dsh-app-sidechat-rename input { flex: 1; }
+html[data-dsh-app-ui] :is(.dsh-app-sidechat-history, .dsh-app-sidechat-context) { flex: none; min-width: 0; max-height: min(270px, 36%); padding: 10px 12px; overflow: auto; border-bottom: 1px solid var(--dsh-workbench-line); background: var(--dsh-workbench-subtle); }
+html[data-dsh-app-ui] .dsh-app-sidechat-history-search { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+html[data-dsh-app-ui] .dsh-app-sidechat-history-search input { flex: 1; background: var(--dsh-workbench-surface); }
+html[data-dsh-app-ui] .dsh-app-sidechat-history-search > span { color: var(--dsh-workbench-muted); font-size: 11px; }
+html[data-dsh-app-ui] .dsh-app-sidechat-history-list { display: flex; flex-direction: column; gap: 2px; }
+html[data-dsh-app-ui] .dsh-app-sidechat-history-list > button { display: flex; align-items: center; justify-content: space-between; min-width: 0; min-height: 38px; gap: 12px; padding: 6px 8px; text-align: left; }
+html[data-dsh-app-ui] .dsh-app-sidechat-history-list > button[aria-current="true"] { color: var(--dsh-workbench-text); background: var(--dsh-workbench-selected); }
+html[data-dsh-app-ui] .dsh-app-sidechat-history-list strong { font-weight: 400; color: var(--dsh-workbench-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-dsh-app-ui] .dsh-app-sidechat-history-list span { flex: none; font-size: 11px; color: var(--dsh-workbench-muted); }
+html[data-dsh-app-ui] :is(.dsh-app-sidechat-history, .dsh-app-sidechat-context) p { margin: 2px 0 9px; font-size: 12px; color: var(--dsh-workbench-muted); }
+html[data-dsh-app-ui] .dsh-app-sidechat-context-sources { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 5px; }
+html[data-dsh-app-ui] .dsh-app-sidechat-context :is(.dsh-app-sidechat-context-sources button, .dsh-app-sidechat-file) { min-height: 28px; padding: 5px 8px; border: 1px solid var(--dsh-workbench-line); color: var(--dsh-workbench-text); background: var(--dsh-workbench-surface); font-size: 12px; }
+html[data-dsh-app-ui] .dsh-app-sidechat-file { max-width: 100%; margin: 3px 4px 3px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-dsh-app-ui] .dsh-app-sidechat-context-form { display: flex; align-items: flex-end; gap: 5px; margin-top: 6px; }
+html[data-dsh-app-ui] .dsh-app-sidechat-context-form textarea { flex: 1; min-width: 0; min-height: 58px; max-height: 110px; padding: 8px 10px; border: 1px solid var(--dsh-workbench-line); border-radius: 8px; background: var(--dsh-workbench-surface); color: var(--dsh-workbench-text); resize: vertical; }
+html[data-dsh-app-ui] :is(.dsh-app-sidechat-rename, .dsh-app-sidechat-context-form) button[type="submit"] { background: var(--dsh-workbench-text); color: var(--dsh-workbench-surface); }
+html[data-dsh-app-ui] :is(.dsh-app-sidechat-rename, .dsh-app-sidechat-context-form) button[type="submit"]:hover:not(:disabled) { background: var(--dsh-workbench-text); color: var(--dsh-workbench-surface); opacity: .85; }
+html[data-dsh-app-ui] .dsh-app-sidechat-body { display: flex; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
+html[data-dsh-app-ui] .dsh-app-sidechat-body > * { flex: 1; min-height: 0; min-width: 0; }
+html[data-dsh-app-ui] .dsh-app-sidechat-footer { border-top: 1px solid var(--dsh-workbench-line); }
+html[data-dsh-app-ui] .dsh-app-sidechat-footer > span { flex: 1; text-align: right; font-size: 11px; color: var(--dsh-workbench-muted); }
+html[data-dsh-app-ui] :is(.dsh-app-sidechat-error, .dsh-app-sidechat-notice) { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 12px; margin: 0; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+html[data-dsh-app-ui] .dsh-app-sidechat-error { color: var(--dsh-workbench-error); background: color-mix(in srgb, var(--dsh-workbench-error) 5%, var(--dsh-workbench-surface)); }
+html[data-dsh-app-ui] .dsh-app-sidechat-error button { flex: none; color: inherit; font-size: 12px; }
+html[data-dsh-app-ui] .dsh-app-sidechat-notice { color: var(--dsh-workbench-muted); background: var(--dsh-workbench-subtle); }
+html[data-dsh-app-ui] .dsh-app-sidechat-references { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; padding-bottom: 8px; }
+html[data-dsh-app-ui] .dsh-app-sidechat-reference { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 3px 4px 3px 7px; border: 1px solid var(--dsh-workbench-line); border-radius: 6px; color: var(--dsh-workbench-muted); background: var(--dsh-workbench-subtle); font-size: 11px; }
+html[data-dsh-app-ui] .dsh-app-sidechat-reference > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-dsh-app-ui] .dsh-app-sidechat-reference button { min-height: 18px; width: 18px; height: 18px; padding: 0; font-size: 14px; }
+
+/* Tabbed workbench and split panes. Active tabs use the Codex pill
+   treatment; resize and drag targets retain the engine's hit areas. */
+html[data-dsh-app-ui] .nArs4W_pane { background: var(--dsh-workbench-surface); }
+html[data-dsh-app-ui] .nArs4W_tabBar {
+  height: 44px;
+  padding: 6px 8px;
+  gap: 4px;
+  align-items: center;
+  border-bottom: 1px solid var(--dsh-workbench-line);
+  background: var(--dsh-workbench-surface);
+}
+html[data-dsh-app-ui] .nArs4W_tabList { height: 32px; gap: 4px; align-items: stretch; }
+html[data-dsh-app-ui] .nArs4W_tab {
+  min-width: 68px;
+  max-width: 210px;
+  gap: 6px;
+  padding: 0 5px 0 10px;
+  border: 0;
+  border-radius: 8px;
+  font: 400 13px/1.5 var(--dsh-workbench-font);
+  color: var(--dsh-workbench-muted);
+  background: transparent;
+}
+html[data-dsh-app-ui] .nArs4W_tab:hover { background: var(--dsh-workbench-hover); }
+html[data-dsh-app-ui] .nArs4W_tabActive { color: var(--dsh-workbench-text); background: var(--dsh-workbench-selected); }
+html[data-dsh-app-ui] .nArs4W_tabClose { width: 22px; height: 22px; border-radius: 5px; color: var(--dsh-workbench-muted); }
+html[data-dsh-app-ui] .nArs4W_tabClose:hover { background: var(--dsh-workbench-hover); color: var(--dsh-workbench-text); }
+html[data-dsh-app-ui] .nArs4W_tabBadge { background: transparent; color: var(--dsh-workbench-muted); font-size: 11px; font-weight: 400; }
+html[data-dsh-app-ui] .nArs4W_tabBarPlus { position: static; margin: 0; }
+html[data-dsh-app-ui] .nArs4W_divider::after { background: var(--dsh-workbench-line); }
+html[data-dsh-app-ui] .nArs4W_divider:hover::after,
+html[data-dsh-app-ui] .nArs4W_dividerActive::after { background: var(--dsh-workbench-muted); }
+html[data-dsh-app-ui] .nArs4W_editorTreeResize:hover { background: var(--dsh-workbench-selected); }
+html[data-dsh-app-ui] .nArs4W_dropOverlay { background: var(--dsh-workbench-selected); opacity: 1; }
+html[data-dsh-app-ui] .nArs4W_dropCenter { background: transparent; outline: 1px dashed var(--dsh-workbench-muted); border-radius: 9px; }
+html[data-dsh-app-ui] .nArs4W_paneEmptyCards {
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  gap: 6px;
+  padding: 20px;
+  overflow-y: auto;
+}
+html[data-dsh-app-ui] .nArs4W_paneCard {
+  min-height: 46px;
+  padding: 11px 13px;
+  gap: 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--dsh-workbench-text);
+  font: 400 13px/1.5 var(--dsh-workbench-font);
+}
+html[data-dsh-app-ui] .nArs4W_paneCard:hover:not(:disabled) { background: var(--dsh-workbench-hover); }
+
+/* Viewer headers share the native sidebar's quiet, readable spacing. */
+html[data-dsh-app-ui] :is(
+  .nArs4W_explorerHeader, .nArs4W_editorHeader, .nArs4W_browserBar,
+  .nArs4W_gitDiffTabHeader, .wxwsGW_subagentHeader, ._4BEzFa_sidechatDetailHeader,
+  .bdiHEa_head, .bdiHEa_diffHead, .nArs4W_editorPdfToolbar, .ao083W_titleBar
+) {
+  min-height: 44px;
+  height: auto;
+  padding: 7px 12px;
+  gap: 8px;
+  background: var(--dsh-workbench-surface);
+  border-bottom: 1px solid var(--dsh-workbench-line);
+}
+html[data-dsh-app-ui] :is(
+  .nArs4W_explorerRoot, .nArs4W_editorTitle, .nArs4W_gitDiffTabTitle,
+  .wxwsGW_subagentHeading, .ao083W_title
+) { color: var(--dsh-workbench-text); font: 500 13px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] :is(
+  .nArs4W_editorPathInput, .nArs4W_editorSearchInput, .nArs4W_browserInput,
+  .nArs4W_explorerRenameInput, .d2hvtW_taskTextarea, .bdiHEa_select
+) {
+  color: var(--dsh-workbench-text);
+  background: var(--dsh-workbench-subtle);
+  border: 1px solid var(--dsh-workbench-line);
+  border-radius: 8px;
+  min-width: 0;
+  height: 32px;
+  padding: 5px 10px;
+  font: 400 13px/1.5 var(--dsh-workbench-font);
+  box-shadow: none;
+}
+html[data-dsh-app-ui] :is(.nArs4W_editorPathInput, .nArs4W_editorSearchInput,
+  .nArs4W_browserInput, .nArs4W_explorerRenameInput, .d2hvtW_taskTextarea):focus {
+  border-color: var(--dsh-workbench-muted);
+}
+html[data-dsh-app-ui] :is(.nArs4W_editorPathInput, .nArs4W_editorSearchInput,
+  .nArs4W_browserInput)::placeholder { color: var(--dsh-workbench-muted); }
+html[data-dsh-app-ui] .nArs4W_editorTreeSearch { padding: 9px 12px; }
+html[data-dsh-app-ui] .nArs4W_editorTreeDock { border-left-color: var(--dsh-workbench-line); }
+html[data-dsh-app-ui] .nArs4W_editorModeToggle { border: 0; background: var(--dsh-workbench-subtle); border-radius: 8px; padding: 3px; }
+html[data-dsh-app-ui] .nArs4W_editorModeButton { padding: 4px 8px; font: 400 12px/1.5 var(--dsh-workbench-font); border-radius: 6px; }
+html[data-dsh-app-ui] .nArs4W_editorModeActive { background: var(--dsh-workbench-selected); color: var(--dsh-workbench-text); }
+
+/* File tree, search, selection and Git. Status colors still carry meaning;
+   selection, roots and navigation use monochrome Codex treatments. */
+html[data-dsh-app-ui] .nArs4W_explorerBody { padding: 4px 8px 12px; overscroll-behavior: contain; }
+html[data-dsh-app-ui] .nArs4W_explorerRow {
+  height: 32px;
+  gap: 7px;
+  border-radius: 7px;
+  font: 400 13px/1.5 var(--dsh-workbench-font);
+  animation: none;
+}
+html[data-dsh-app-ui] .nArs4W_explorerDir { font-weight: 400; }
+html[data-dsh-app-ui] .nArs4W_explorerRowSelected { background: var(--dsh-workbench-selected); }
+html[data-dsh-app-ui] .nArs4W_explorerRowSelected::before { display: none; }
+html[data-dsh-app-ui] .nArs4W_explorerRowRevealed { background: var(--dsh-workbench-subtle); }
+html[data-dsh-app-ui] .nArs4W_explorerRef { border: 0; border-radius: 5px; height: 22px; background: transparent; font-size: 11px; font-weight: 400; }
+html[data-dsh-app-ui] .nArs4W_explorerRenameInput { height: 26px; }
+html[data-dsh-app-ui] .nArs4W_explorerSelectionBar { border: 1px solid var(--dsh-workbench-line); background: var(--dsh-workbench-surface); border-radius: 9px; min-height: 36px; margin-top: 8px; padding: 5px 8px; }
+html[data-dsh-app-ui] .nArs4W_editorSearchResult { height: 34px; border-radius: 7px; font: 400 13px/34px var(--dsh-workbench-font); }
+html[data-dsh-app-ui] .bdiHEa_root { background: var(--dsh-workbench-surface); font: 400 13px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] :is(.bdiHEa_row, .bdiHEa_logRow, .bdiHEa_opRow) { min-height: 32px; border-radius: 7px; animation: none; }
+html[data-dsh-app-ui] .bdiHEa_groupHeader { min-height: 36px; font: 500 12px/1.5 var(--dsh-workbench-font); color: var(--dsh-workbench-muted); }
+html[data-dsh-app-ui] .bdiHEa_commitBar { padding: 12px; gap: 8px; background: var(--dsh-workbench-surface); }
+html[data-dsh-app-ui] .bdiHEa_commitInput { border: 1px solid var(--dsh-workbench-line); border-radius: 8px; background: var(--dsh-workbench-subtle); box-shadow: none; }
+html[data-dsh-app-ui] .bdiHEa_commitInput input { color: var(--dsh-workbench-text); font: 400 13px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] :is(.bdiHEa_countPill, .U62vHa_sectionCount, .U62vHa_chipCount) { background: transparent; color: var(--dsh-workbench-muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+html[data-dsh-app-ui] .U62vHa_chip { border: 0; border-radius: 7px; padding: 5px 8px; background: transparent; font: 400 12px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] .U62vHa_chipActive { background: var(--dsh-workbench-selected); }
+html[data-dsh-app-ui] .U62vHa_sectionLabel { text-transform: none; letter-spacing: normal; font: 500 12px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] .U62vHa_sectionHeader { min-height: 36px; }
+
+/* Reading and source previews keep the artifact itself clear of chrome. */
+html[data-dsh-app-ui] .nArs4W_editorMd { padding: 22px 24px 32px; font: 400 14px/1.75 var(--dsh-workbench-font); overscroll-behavior: contain; }
+html[data-dsh-app-ui] .nArs4W_editorCm .cm-scroller { padding: 16px 20px; font: 400 13px/1.7 var(--dsh-workbench-mono); }
+html[data-dsh-app-ui] .nArs4W_editorCm .cm-gutters { background: var(--dsh-workbench-surface); border-right: 0; color: var(--dsh-workbench-muted); }
+html[data-dsh-app-ui] .nArs4W_editorCm .cm-activeLine,
+html[data-dsh-app-ui] .nArs4W_editorCm .cm-activeLineGutter { background: var(--dsh-workbench-subtle); }
+html[data-dsh-app-ui] :is(.nArs4W_editorMd, .bdiHEa_mdBody, ._4BEzFa_sidechatAssistant)
+  :is(pre, .md-code-block) { border-radius: 9px; font-family: var(--dsh-workbench-mono); }
+html[data-dsh-app-ui] :is(.nArs4W_mermaidWrap, .nArs4W_tocPanel) { border-color: var(--dsh-workbench-line); background: var(--dsh-workbench-surface); border-radius: 10px; }
+html[data-dsh-app-ui] .nArs4W_mermaidHeader { background: var(--dsh-workbench-subtle); min-height: 34px; padding: 5px 10px; }
+html[data-dsh-app-ui] .nArs4W_mermaidCode { font: 400 12px/1.65 var(--dsh-workbench-mono); padding: 12px; }
+html[data-dsh-app-ui] .nArs4W_mermaidModal { background: #0007; backdrop-filter: none; }
+html[data-dsh-app-ui] .nArs4W_mermaidModalStage svg { background: var(--dsh-workbench-surface); border: 1px solid var(--dsh-workbench-line); border-radius: 12px; }
+html[data-dsh-app-ui] .nArs4W_mermaidModalButton { background: var(--dsh-workbench-surface); color: var(--dsh-workbench-text); border-color: var(--dsh-workbench-line); }
+html[data-dsh-app-ui] .nArs4W_tocItem { padding-block: 7px; font: 400 13px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] .nArs4W_selectionPopup { height: 34px; padding: 0 12px; border-radius: 8px; background: var(--dsh-workbench-surface); color: var(--dsh-workbench-text); border-color: var(--dsh-workbench-line); box-shadow: var(--dsh-workbench-shadow); font: 400 12px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] :is(.nArs4W_editorDownloadLink, .nArs4W_browserBlockedButton,
+  .nArs4W_terminalRetry, .nArs4W_sandboxAction, .nArs4W_uploadOverlayCancel) {
+  background: transparent;
+  color: var(--dsh-workbench-text);
+  border: 1px solid var(--dsh-workbench-line);
+  border-radius: 8px;
+  padding: 6px 11px;
+  font: 400 12px/1.5 var(--dsh-workbench-font);
+  height: auto;
+}
+html[data-dsh-app-ui] :is(.nArs4W_editorPlaceholder, .nArs4W_browserStart,
+  .nArs4W_explorerEmpty, .nArs4W_gitPlaceholder, .wxwsGW_subagentEmptyHint,
+  .U62vHa_noticeHint) { color: var(--dsh-workbench-muted); font: 400 13px/1.65 var(--dsh-workbench-font); }
+
+/* Diffs use a legible code grid and restrained semantic highlights. */
+html[data-dsh-app-ui] .sstWLa_rows { font: 400 12px/1.7 var(--dsh-workbench-mono); padding: 8px 0 12px; }
+html[data-dsh-app-ui] .sstWLa_row { padding: 1px 14px; line-height: 20px; gap: 8px; }
+html[data-dsh-app-ui] .sstWLa_lineNo { color: var(--dsh-workbench-muted); font-variant-numeric: tabular-nums; }
+html[data-dsh-app-ui] .sstWLa_file { font: 500 12px/1.5 var(--dsh-workbench-mono); padding: 10px 14px; color: var(--dsh-workbench-text); background: var(--dsh-workbench-subtle); }
+html[data-dsh-app-ui] .sstWLa_fileBlock { border-color: var(--dsh-workbench-line); border-radius: 9px; }
+html[data-dsh-app-ui] .sstWLa_row[data-kind="add"] { background: color-mix(in srgb, var(--dsh-workbench-success) 9%, var(--dsh-workbench-surface)); }
+html[data-dsh-app-ui] .sstWLa_row[data-kind="del"] { background: color-mix(in srgb, var(--dsh-workbench-error) 9%, var(--dsh-workbench-surface)); }
+html[data-dsh-app-ui] .sstWLa_row[data-kind="mod"] { background: var(--dsh-workbench-subtle); }
+html[data-dsh-app-ui] .sstWLa_foldRow { background: var(--dsh-workbench-subtle); padding-block: 6px; color: var(--dsh-workbench-muted); }
+html[data-dsh-app-ui] .sstWLa_expand { border-radius: 6px; font: 400 12px/1.5 var(--dsh-workbench-font); }
+
+/* Tasks and agents. The graph is a plain workspace; hierarchy and running
+   state remain explicit without the predecessor's dotted canvas or sweeps. */
+html[data-dsh-app-ui] .d2hvtW_canvas { background-image: none; background-color: var(--dsh-workbench-surface); }
+html[data-dsh-app-ui] .d2hvtW_controls { background: var(--dsh-workbench-surface); border-color: var(--dsh-workbench-line); border-radius: 9px; box-shadow: none; }
+html[data-dsh-app-ui] .d2hvtW_node { background: var(--dsh-workbench-surface); border-color: var(--dsh-workbench-line); border-radius: 10px; box-shadow: none; }
+html[data-dsh-app-ui] .d2hvtW_node:hover { border-color: var(--dsh-workbench-muted); box-shadow: none; }
+html[data-dsh-app-ui] .d2hvtW_nodeCurrent { border: 1px solid var(--dsh-workbench-text); box-shadow: 0 0 0 1px var(--dsh-workbench-text); }
+html[data-dsh-app-ui] .d2hvtW_nodeError { border-color: var(--dsh-workbench-error); }
+html[data-dsh-app-ui] .d2hvtW_cardBar { background: var(--dsh-workbench-subtle); border-color: var(--dsh-workbench-line); }
+html[data-dsh-app-ui] .d2hvtW_cardBar[data-running="true"]::after { display: none; }
+html[data-dsh-app-ui] :is(.d2hvtW_phaseLabel, .d2hvtW_popGroup, .d2hvtW_taskLabel) { letter-spacing: normal; text-transform: none; font: 500 12px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] .d2hvtW_phaseLabel { background: var(--dsh-workbench-surface); }
+html[data-dsh-app-ui] .d2hvtW_phaseBadge { border-radius: 5px; border-color: var(--dsh-workbench-line); }
+html[data-dsh-app-ui] .d2hvtW_edge { stroke: var(--dsh-workbench-line); }
+html[data-dsh-app-ui] :is(.d2hvtW_treeRow, .d2hvtW_jobsRow, .d2hvtW_teamTask) { border-radius: 7px; }
+html[data-dsh-app-ui] .d2hvtW_treeRowActive { background: var(--dsh-workbench-selected); }
+html[data-dsh-app-ui] :is(.d2hvtW_jobsDrawer, .d2hvtW_teamBoard) { background: var(--dsh-workbench-surface); border-color: var(--dsh-workbench-line); }
+html[data-dsh-app-ui] :is(.d2hvtW_jobsDrawerBar, .d2hvtW_teamBoardBar) { height: 36px; padding-inline: 14px; font: 500 12px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] .d2hvtW_popCard { border: 1px solid var(--dsh-workbench-line); background: var(--dsh-workbench-surface); color: var(--dsh-workbench-text); border-radius: 12px; box-shadow: var(--dsh-workbench-shadow); }
+html[data-dsh-app-ui] .d2hvtW_popHead { background: var(--dsh-workbench-surface); border-color: var(--dsh-workbench-line); }
+html[data-dsh-app-ui] .d2hvtW_taskTextarea { height: auto; min-height: 120px; font-family: var(--dsh-workbench-mono); }
+html[data-dsh-app-ui] .d2hvtW_taskMarkdown { font: 400 13px/1.7 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] .d2hvtW_taskOwnerPill { border-radius: 7px; font: 400 12px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] .d2hvtW_jobsBigNum { color: var(--dsh-workbench-text); }
+html[data-dsh-app-ui] .ck4neW_nodeTitle { font: 500 13px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] .ao083W_window { border: 1px solid var(--dsh-workbench-line); border-radius: 12px; background: var(--dsh-workbench-surface); box-shadow: var(--dsh-workbench-shadow); }
+html[data-dsh-app-ui] .ao083W_footer { border-color: var(--dsh-workbench-line); background: var(--dsh-workbench-surface); padding: 10px 14px; }
+html[data-dsh-app-ui] :is(._2vuxea_popupDialog, ._2vuxea_pluginModal) { border: 1px solid var(--dsh-workbench-line); border-radius: 14px; background: var(--dsh-workbench-surface); color: var(--dsh-workbench-text); box-shadow: var(--dsh-workbench-shadow); font: 400 13px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] :is(._2vuxea_popupDialog, ._2vuxea_pluginModal) :is(button, input, select, textarea):focus-visible { outline: 2px solid var(--dsh-workbench-focus); outline-offset: -2px; }
+html[data-dsh-app-ui] :is(._2vuxea_popupRow, ._2vuxea_pluginEntry) { padding-block: 12px; border-color: var(--dsh-workbench-line); }
+html[data-dsh-app-ui] :is(._2vuxea_title, ._2vuxea_pluginName) { font: 500 13px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] :is(._2vuxea_desc, ._2vuxea_pluginDesc) { font: 400 12px/1.6 var(--dsh-workbench-font); color: var(--dsh-workbench-muted); }
+html[data-dsh-app-ui] :is(._2vuxea_typedInput, ._2vuxea_typedInputNumber, ._2vuxea_selectAnchor, ._2vuxea_cssTextArea, ._2vuxea_pluginSearch) { border: 1px solid var(--dsh-workbench-line); border-radius: 8px; padding: 7px 10px; color: var(--dsh-workbench-text); background: var(--dsh-workbench-subtle); font: 400 13px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] ._2vuxea_cssTextArea { font-family: var(--dsh-workbench-mono); }
+html[data-dsh-app-ui] :is(._2vuxea_done, ._2vuxea_pluginInstall) { border: 0; border-radius: 8px; padding: 7px 13px; background: var(--dsh-workbench-text); color: var(--dsh-workbench-surface); font: 400 13px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] ._2vuxea_switchInput:checked + ._2vuxea_switchTrack { background: var(--dsh-workbench-text); }
+
+/* Side conversations share the app's transcript and composer language. */
+html[data-dsh-app-ui] ._4BEzFa_sidechatScroll { gap: 20px; padding: 20px 20px 16px; overscroll-behavior: contain; }
+html[data-dsh-app-ui] ._4BEzFa_sidechatScroll > * { animation: none; }
+html[data-dsh-app-ui] ._4BEzFa_sidechatUser { background: var(--dsh-workbench-subtle); border-radius: 13px; padding: 9px 13px; font: 400 14px/1.65 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] ._4BEzFa_sidechatAssistant { font: 400 14px/1.75 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] ._4BEzFa_sidechatHero { animation: none; gap: 10px; }
+html[data-dsh-app-ui] ._4BEzFa_sidechatHeroTitle { font: 500 16px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] ._4BEzFa_sidechatHeroDesc { font: 400 13px/1.65 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] ._4BEzFa_sidechatAgentBadge { border: 0; border-radius: 6px; background: var(--dsh-workbench-subtle); padding: 3px 7px; font-size: 12px; }
+html[data-dsh-app-ui] ._4BEzFa_sidechatComposer { margin: 0 12px 12px; padding: 11px 12px 9px; border: 1px solid var(--dsh-workbench-line); border-radius: 17px; background: var(--dsh-workbench-surface); box-shadow: none; }
+html[data-dsh-app-ui] ._4BEzFa_sidechatComposer:focus-within { border-color: var(--dsh-workbench-muted); }
+html[data-dsh-app-ui] ._4BEzFa_sidechatComposerInput { min-height: 48px; font: 400 14px/1.65 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] ._4BEzFa_sidechatComposerInput:focus-visible { outline: none; }
+html[data-dsh-app-ui] .dsh-app-sidechat ._4BEzFa_sidechatComposerInput:focus-visible { outline: none; }
+html[data-dsh-app-ui] :is(._4BEzFa_sidechatSendBtn, ._4BEzFa_sidechatPrimaryBtn) { background: var(--dsh-workbench-text); color: var(--dsh-workbench-surface); animation: none; }
+html[data-dsh-app-ui] .dsh-app-sidechat :is(._4BEzFa_sidechatSendBtn, ._4BEzFa_sidechatPrimaryBtn) { background: var(--dsh-workbench-text); color: var(--dsh-workbench-surface); }
+html[data-dsh-app-ui] .dsh-app-sidechat :is(._4BEzFa_sidechatSendBtn, ._4BEzFa_sidechatPrimaryBtn):hover:not(:disabled) { background: var(--dsh-workbench-text); color: var(--dsh-workbench-surface); opacity: .85; }
+html[data-dsh-app-ui] ._4BEzFa_sidechatSendBtn { width: 30px; height: 30px; }
+html[data-dsh-app-ui] ._4BEzFa_sidechatPrimaryBtn { border-radius: 8px; padding: 7px 12px; font: 400 13px/1.5 var(--dsh-workbench-font); }
+html[data-dsh-app-ui] :is(._4BEzFa_sidechatShimmerText, ._4BEzFa_sidechatStatusText) { background-image: none; color: var(--dsh-workbench-muted); animation: none; }
+html[data-dsh-app-ui] ._4BEzFa_sidechatRowCode { font: 400 12px/1.7 var(--dsh-workbench-mono); }
+html[data-dsh-app-ui] ._4BEzFa_sidechatRowBody { padding-left: 12px; border-color: var(--dsh-workbench-line); }
+
+/* Upload progress and notices retain their actionable state, without art,
+   blur or accent-filled surfaces. */
+html[data-dsh-app-ui] .nArs4W_uploadOverlay { backdrop-filter: none; background: color-mix(in srgb, var(--dsh-workbench-surface) 80%, transparent); animation: none; }
+html[data-dsh-app-ui] .nArs4W_uploadOverlayCard { background: var(--dsh-workbench-surface); border-color: var(--dsh-workbench-line); border-radius: 12px; padding: 20px; gap: 14px; box-shadow: var(--dsh-workbench-shadow); }
+html[data-dsh-app-ui] .nArs4W_uploadOverlayProgress { height: 4px; background: var(--dsh-workbench-selected); }
+html[data-dsh-app-ui] .nArs4W_uploadOverlayProgressFill { background: var(--dsh-workbench-text); }
+html[data-dsh-app-ui] .nArs4W_uploadDropZone { background: color-mix(in srgb, var(--dsh-workbench-surface) 88%, transparent); border: 1px dashed var(--dsh-workbench-muted); border-radius: 12px; animation: none; }
+html[data-dsh-app-ui] .nArs4W_uploadDropZonePill { border-radius: 8px; background: var(--dsh-workbench-surface); border-color: var(--dsh-workbench-line); box-shadow: none; }
+html[data-dsh-app-ui] .nArs4W_uploadDropArtPrimary { color: var(--dsh-workbench-text); }
+html[data-dsh-app-ui] .nArs4W_uploadDropArtAccent { color: var(--dsh-workbench-selected); }
+html[data-dsh-app-ui] :is(.nArs4W_editorBanner, .nArs4W_browserMessage) { font: 400 12px/1.6 var(--dsh-workbench-font); padding: 7px 12px; color: var(--dsh-workbench-warning); background: color-mix(in srgb, var(--dsh-workbench-warning) 7%, var(--dsh-workbench-surface)); }
+
+/* Engine-owned menus can mark their portaled root with this attribute;
+   submenu-bearing tree/tab menus also publish the existing body marker. */
+html[data-dsh-app-ui] [data-dsh-app-workbench-portal][role="menu"],
+html[data-dsh-app-ui] [data-dsh-app-workbench-portal] [role="menu"],
+html[data-dsh-app-ui] [data-dockkit-tab-menu],
+html[data-dsh-app-ui] body[data-dsh-sidebar-submenu] [role="menu"] {
+  color: var(--dsh-workbench-text);
+  background: var(--dsh-workbench-surface);
+  border: 1px solid var(--dsh-workbench-line);
+  border-radius: 10px;
+  padding: 5px;
+  box-shadow: var(--dsh-workbench-shadow);
+  font: 400 13px/1.5 var(--dsh-workbench-font);
+}
+html[data-dsh-app-ui] [data-dsh-app-workbench-portal] [role="menuitem"],
+html[data-dsh-app-ui] [data-dockkit-tab-menu] [role="menuitem"],
+html[data-dsh-app-ui] body[data-dsh-sidebar-submenu] [role="menu"] button {
+  min-height: 32px;
+  border-radius: 6px;
+  font: inherit;
+  color: inherit;
+}
+html[data-dsh-app-ui] [data-dsh-app-workbench-portal] [role="menuitem"]:hover,
+html[data-dsh-app-ui] [data-dockkit-tab-menu] [role="menuitem"]:hover,
+html[data-dsh-app-ui] body[data-dsh-sidebar-submenu] [role="menu"] button:hover,
+html[data-dsh-app-ui] body[data-dsh-sidebar-submenu] [role="menu"] button[aria-expanded="true"] { background: var(--dsh-workbench-hover); }
+html[data-dsh-app-ui] body[data-dsh-sidebar-submenu] [role="menu"] [role="menu"] { left: calc(100% + 4px); }
+html[data-dsh-app-ui] body[data-dsh-sidebar-submenu] [role="menu"] [role="menu"]::before { left: -4px; width: 4px; }
+html[data-dsh-app-ui] body[data-dsh-sidebar-submenu~="down"] [role="menu"] [role="menu"] { top: -4px; bottom: auto; }
+html[data-dsh-app-ui] body[data-dsh-sidebar-submenu~="left"] [role="menu"] [role="menu"] { left: auto; right: calc(100% + 4px); }
+html[data-dsh-app-ui] body[data-dsh-sidebar-submenu~="left"] [role="menu"] [role="menu"]::before { left: auto; right: -4px; }
+
+@container dsh-workbench (max-width: 380px) {
+  html[data-dsh-app-ui] .nArs4W_paneEmptyCards { grid-template-columns: 1fr; padding: 12px; }
+  html[data-dsh-app-ui] :is(.nArs4W_editorHeader, .nArs4W_browserBar) { padding-inline: 8px; gap: 4px; flex-wrap: wrap; }
+  html[data-dsh-app-ui] :is(.nArs4W_editorPathInput, .nArs4W_browserInput) { flex-basis: 140px; }
+  html[data-dsh-app-ui] .nArs4W_editorMd { padding: 18px 16px 24px; }
+  html[data-dsh-app-ui] ._4BEzFa_sidechatScroll { padding-inline: 14px; }
+  html[data-dsh-app-ui] .nArs4W_tab { max-width: 154px; }
+}
+@media (max-width: 767px) {
+  html[data-dsh-app-ui] .nArs4W_tab { min-width: 56px; max-width: 154px; }
+  html[data-dsh-app-ui] .nArs4W_editorMd { padding: 18px 16px 24px; }
+  html[data-dsh-app-ui] .nArs4W_explorerRow { height: 36px; }
+  html[data-dsh-app-ui] .nArs4W_uploadOverlayCard { min-width: 0; max-width: calc(100% - 24px); }
+}
+@media (hover: none) {
+  html[data-dsh-app-ui] .nArs4W_explorerRef { display: inline-flex; }
+  html[data-dsh-app-ui] .d2hvtW_jobsKill { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-dsh-app-ui] :is([data-dsh-native-tab-host],
+    .ao083W_window, .nArs4W_mermaidModal, [data-dsh-app-workbench-portal]) * {
+    animation-duration: 0s !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* The actual native dock slides in concert with the conversation grid. Native
+   floating panes keep their own geometry, dragging and focus lifecycles. */
+html[data-dsh-app-ui] [data-sidebar-right-panel] {
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: calc(var(--dsh-sidebar-width) - 24px) !important;
+  max-width: calc(100vw - var(--dsh-app-rail-width, 0px) - 34px);
+  --dsh-workbench-exit-distance: calc(var(--dsh-sidebar-width) + 24px);
+}
+html[data-dsh-app-ui] [data-sidebar-right-panel="push"] { top: 62px; }
+html[data-dsh-app-ui] [data-sidebar-right-panel] [data-dockkit-host="dock"] > [data-dockkit-content],
+html[data-dsh-app-ui] [data-sidebar-right-panel] [data-dockkit-empty] {
+  border: 1px solid var(--dsh-workbench-line);
+  border-radius: 16px;
+  background: var(--dsh-workbench-surface);
+  box-shadow: 0 3px 12px #0000000b;
+}
+html[data-dsh-app-ui] [data-sidebar-right-panel] [data-dockkit-host="dock"],
+html[data-dsh-app-ui] [data-sidebar-right-panel] [data-dockkit-empty],
+html[data-dsh-app-ui] [data-sidebar-right-panel] [data-dockkit-divider] {
+  transform: translateX(var(--dsh-workbench-exit-distance));
+  visibility: hidden;
+  transition: transform var(--dsh-workbench-motion-duration) var(--dsh-workbench-motion-ease), visibility 0s linear var(--dsh-workbench-motion-duration);
+}
+html[data-dsh-app-ui] [data-sidebar-right-panel][data-sidebar-right-open] [data-dockkit-host="dock"],
+html[data-dsh-app-ui] [data-sidebar-right-panel][data-sidebar-right-open] [data-dockkit-empty],
+html[data-dsh-app-ui] [data-sidebar-right-panel][data-sidebar-right-open] [data-dockkit-divider] {
+  transform: none;
+  visibility: visible;
+  transition: transform var(--dsh-workbench-motion-duration) var(--dsh-workbench-motion-ease), visibility 0s;
+}
+html[data-dsh-app-ui] [data-dsh-app-frame],
+html[data-dsh-app-ui] [data-dsh-app-frame][data-animating],
+html[data-dsh-app-ui] [data-dsh-app-frame][data-dsh-app-right-mode-changing] {
+  transition: grid-template-columns var(--dsh-workbench-motion-duration) var(--dsh-workbench-motion-ease);
+}
+html[data-dsh-app-ui] [data-dsh-app-frame] > [data-side],
+html[data-dsh-app-ui] [data-dsh-app-frame][data-animating] > [data-side],
+html[data-dsh-app-ui] [data-dsh-app-frame][data-dsh-app-right-mode-changing] > [data-side] {
+  transition: left var(--dsh-workbench-motion-duration) var(--dsh-workbench-motion-ease);
+}
+
+/* The entire conversation canvas remains full width. Only its marked message
+   and composer content consume --dsh-app-chat-inset; the native dock floats. */
+html[data-dsh-app-ui] [data-dsh-app-frame][data-dsh-app-right-overlay] {
+  grid-template-columns: var(--dsh-app-overlay-tracks, 0px minmax(0px, 1fr) minmax(0px, 0px)) !important;
+}
+html[data-dsh-app-ui] [data-dsh-app-frame][data-dsh-app-right-overlay][data-sidebar-collapsed] {
+  grid-template-columns: 0px minmax(0px, 1fr) minmax(0px, 0px) !important;
+}
+html[data-dsh-app-ui] [data-dsh-app-frame][data-dsh-app-right-summary] > [data-side="rightbar"] { visibility: hidden; pointer-events: none; }
+html[data-dsh-app-ui] [data-dsh-app-frame][data-dsh-app-right-overlay]:not([data-dsh-app-right-summary]) > [data-side="rightbar"] {
+  left: calc(100% - var(--dsh-app-chat-inset, 0px) + 20px) !important;
+  top: 62px;
+  bottom: 12px;
+}
+html[data-dsh-app-ui][data-windows-titlebar] [data-dsh-app-frame][data-dsh-app-right-overlay]:not([data-dsh-app-right-summary]) > [data-side="rightbar"] {
+  top: calc(62px + var(--dsh-windows-titlebar-height, 0px));
+}
+html[data-dsh-app-ui] [data-sidebar-right-panel="push"][data-dsh-app-panel-summary] {
+  top: 62px;
+  right: 16px;
+  bottom: auto;
+  width: var(--dsh-workbench-summary-width) !important;
+  max-width: calc(100vw - var(--dsh-app-rail-width, 0px) - 42px);
+  --dsh-workbench-exit-distance: calc(100% + 24px);
+}
+html[data-dsh-app-ui] [data-sidebar-right-panel="push"][data-dsh-app-panel-summary] > .P3OORG_panelBody { flex: none; }
+html[data-dsh-app-ui] [data-sidebar-right-panel="push"][data-dsh-app-panel-summary] [data-dockkit-host="dock"] > [data-dockkit-content] { overflow: visible; box-shadow: var(--dsh-workbench-shadow); }
+html[data-dsh-app-ui] [data-sidebar-right-panel="push"][data-dsh-app-panel-summary] [data-dockkit-host="dock"] > [data-dockkit-content] > div:first-child { display: none; }
+html[data-dsh-app-ui] [data-sidebar-right-panel="push"][data-dsh-app-panel-summary] [data-dockkit-host="dock"] > [data-dockkit-content] > div:last-child { flex: none; overflow: visible; }
+html[data-dsh-app-ui] [data-sidebar-right-panel="push"][data-dsh-app-panel-summary] .P3OORG_tabBody { height: auto; overflow: visible; }
+html[data-dsh-app-ui] [data-sidebar-right-panel="push"][data-dsh-app-panel-summary] [data-sidebar-right-guide] { min-height: 0; padding: 12px; }
+html[data-dsh-app-ui] [data-sidebar-right-panel="fullscreen"] {
+  width: calc(var(--dsh-sidebar-width) - var(--dsh-app-rail-width, 0px) - 34px) !important;
+  max-width: calc(100vw - var(--dsh-app-rail-width, 0px) - 34px) !important;
+}
+
+/* Resizing and native instant/session changes snap to their final geometry. */
+html[data-dsh-app-ui][data-dsh-app-panel-resizing] [data-dsh-app-frame],
+html[data-dsh-app-ui] [data-dsh-app-frame][data-dragging],
+html[data-dsh-app-ui] [data-dsh-app-frame][data-rightbar-fullscreen],
+html[data-dsh-app-ui] [data-dsh-app-frame][data-rightbar-instant] {
+  transition: none !important;
+}
+html[data-dsh-app-ui] [data-dsh-app-frame]:is([data-rightbar-instant], [data-dragging]) [data-sidebar-right-panel] :is([data-dockkit-host="dock"], [data-dockkit-empty], [data-dockkit-divider]),
+html[data-dsh-app-ui][data-dsh-app-panel-resizing] [data-sidebar-right-panel] :is([data-dockkit-host="dock"], [data-dockkit-empty], [data-dockkit-divider]) { transition: none !important; }
+html[data-dsh-app-ui][data-dsh-app-panel-resizing] [data-dsh-app-frame] > [data-side],
+html[data-dsh-app-ui] [data-dsh-app-frame]:is([data-dragging], [data-rightbar-fullscreen], [data-rightbar-instant]) > [data-side] { transition: none !important; }
+@media (max-width: 1000px) {
+  html[data-dsh-app-ui] body { --dsh-workbench-summary-width: 320px; }
+}
+@media (max-width: 767px) {
+  html[data-dsh-app-ui] [data-sidebar-right-panel] { top: 8px; right: 8px; bottom: 8px; width: calc(var(--dsh-sidebar-width) - 16px) !important; max-width: calc(100vw - var(--dsh-app-rail-width, 0px) - 26px) !important; }
+  html[data-dsh-app-ui] [data-sidebar-right-panel="fullscreen"] { width: calc(var(--dsh-sidebar-width) - var(--dsh-app-rail-width, 0px) - 26px) !important; }
+  html[data-dsh-app-ui] .dsh-app-sidechat-history-list > button { align-items: flex-start; flex-direction: column; gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-dsh-app-ui] [data-dsh-app-frame],
+  html[data-dsh-app-ui] [data-dsh-app-frame] > [data-side],
+  html[data-dsh-app-ui] [data-sidebar-right-panel] :is([data-dockkit-host="dock"], [data-dockkit-empty], [data-dockkit-divider]) { transition: none !important; }
+}

@@ -1,0 +1,42 @@
+/* A single centered welcome and composer. All native input seats stay mounted. */
+html[data-dsh-app-ui] [data-dsh-app-main] [data-content-phase="hero"] {
+  --dsh-composer-card-max-width: 792px;
+}
+html[data-dsh-app-ui] [data-dsh-app-main] [data-content-phase="hero"] [data-conversation-scroll] { justify-content: flex-start; }
+html[data-dsh-app-ui] [data-dsh-app-main] [data-content-phase="hero"] [data-composer-seat] { flex: 1; min-height: 440px; }
+html[data-dsh-app-ui] [data-dsh-app-main] [data-content-phase="hero"] [data-composer-seat] > [data-slot="conversation.composer"],
+html[data-dsh-app-ui] [data-dsh-app-main] [data-content-phase="hero"] [data-chain-overlay-fallback="conversation.composer"] { display: flex; flex: 1; flex-direction: column; }
+html[data-dsh-app-ui] [data-dsh-app-main] [data-content-phase="hero"] [data-composer-seat] :has(> [data-slot="conversation.composer.bar"]) {
+  box-sizing: border-box; flex: 1; width: 100%; max-width: none; align-self: center; align-items: center;
+  padding: 24px clamp(16px, 3vw, 36px) 22px; gap: 0;
+}
+html[data-dsh-app-ui] [data-dsh-app-main] [data-content-phase="hero"] [data-composer-seat] :has(> [data-slot="conversation.composer.bar"]) > div:has([data-slot="conversation.hero.brand.mark"]) {
+  flex: 1; width: 100%; min-height: 200px; height: auto; box-sizing: border-box;
+  align-items: flex-start; padding: clamp(28px, 12vh, 128px) 0 56px;
+}
+html[data-dsh-app-ui] [data-slot="conversation.hero.brand.mark"] { width: 100%; }
+html[data-dsh-app-ui] [data-content-phase="hero"] div:has(> span > [data-slot="conversation.hero.brand.mark"]) { width: 100%; }
+html[data-dsh-app-ui] [data-content-phase="hero"] div:has(> span > [data-slot="conversation.hero.brand.mark"]) > span:has([data-slot="conversation.hero.brand.mark"]) { width: 100%; }
+html[data-dsh-app-ui] [data-content-phase="hero"] div:has(> span > [data-slot="conversation.hero.brand.mark"]) > span:not(:has([data-slot="conversation.hero.brand.mark"])) { display: none; }
+.dsh-app-new-chat-heading { display: flex; flex-direction: column; align-items: center; gap: 32px; width: 100%; text-align: center; }
+.dsh-app-new-chat-heading > svg { color: var(--dsh-app-muted); opacity: .6; flex: none; }
+.dsh-app-new-chat-heading > [role="heading"] { color: var(--dsh-app-label); font-size: clamp(23px, 2.6vw, 32px); line-height: 1.4; font-weight: 500; letter-spacing: -.5px; text-wrap: balance; }
+html[data-dsh-app-ui] [data-dsh-app-main] [data-content-phase="hero"] div:has(> [data-slot="conversation.hero.workspace"]) {
+  box-sizing: border-box; flex: none; width: calc(100% - 28px); max-width: 764px; min-height: 58px;
+  margin: 0 0 -14px; padding: 8px 12px 22px; gap: 10px; border-radius: 20px 20px 0 0;
+  background: color-mix(in srgb, var(--dsw-specific-input-major) 65%, var(--dsh-app-surface));
+}
+html[data-dsh-app-ui] [data-content-phase="hero"] div:has(> [data-slot="conversation.hero.workspace"]) > button { min-width: 0; max-width: 55%; }
+html[data-dsh-app-ui] [data-content-phase="hero"] [data-slot="conversation.hero.agentPreset"] { min-width: 0; }
+html[data-dsh-app-ui] [data-content-phase="hero"] [data-slot="conversation.hero.agentPreset"] button { max-width: 100%; }
+html[data-dsh-app-ui] [data-dsh-app-main] [data-content-phase="hero"] [data-slot="conversation.composer.bar"] { flex: none; width: 100%; max-width: 792px; z-index: 2; }
+html[data-dsh-app-ui] [data-dsh-app-main] [data-content-phase="hero"] [data-slot="conversation.composer.bar"] > div { box-sizing: border-box; flex: none; width: 100%; max-width: 792px; padding-inline: 0; }
+html[data-dsh-app-ui] [data-content-phase="hero"] [data-slot="conversation.input.dock"]:empty { display: none; }
+html[data-dsh-app-ui] [data-content-phase="hero"] [data-composer-card] { border-radius: 24px; padding-top: 12px; }
+html[data-dsh-app-ui] [data-content-phase="hero"] [data-composer-card] [data-composer-input] { min-height: 72px; }
+@media (max-width: 640px), (max-height: 640px) {
+  html[data-dsh-app-ui] [data-dsh-app-main] [data-content-phase="hero"] [data-composer-seat] { min-height: 340px; }
+  html[data-dsh-app-ui] [data-dsh-app-main] [data-content-phase="hero"] [data-composer-seat] :has(> [data-slot="conversation.composer.bar"]) > div:has([data-slot="conversation.hero.brand.mark"]) { padding-block: 24px 36px; min-height: 150px; }
+  .dsh-app-new-chat-heading { gap: 20px; }
+  .dsh-app-new-chat-heading > svg { width: 44px; height: 44px; }
+}

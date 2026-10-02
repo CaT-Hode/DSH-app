@@ -14,6 +14,7 @@ export default function createPluginPagesClient(require) {
       installed: '已安装插件', installedTab: '已安装', mcpTab: 'MCP', browse: '浏览插件市场',
       search: '搜索插件', allPlugins: '全部', installedFilter: '已安装', updatesFilter: '可更新', availableFilter: '可安装',
       details: '详情', closeDetails: '关闭详情', configure: '配置', enable: '启用', disable: '停用', official: '官方功能', community: '社区插件', local: '本地插件', active: '已启用', disabled: '已停用', failed: '启动失败', managedByApp: '由 DSH App 管理', description: '说明', noDescription: '此插件尚未提供说明。', sourceInstallTitle: '从来源安装', pendingDetails: '查看变更', author: '作者',
+      officialSource: 'DeepSeek AI 官方', shippedOfficial: 'DSH 内置', optionalOfficial: 'DSH 内置 · 可选',
       allCategories: '全部分类', loading: '正在读取插件…', noResults: '没有匹配的插件。', staleCatalog: '目录暂时无法刷新，当前显示上次保存的内容。',
       refresh: '刷新', checkUpdates: '检查更新', checking: '正在检查…',
       install: '安装', update: '更新', uninstall: '卸载', cancel: '取消排队',
@@ -32,6 +33,7 @@ export default function createPluginPagesClient(require) {
       installed: 'Installed plugins', installedTab: 'Installed', mcpTab: 'MCP', browse: 'Browse plugin market',
       search: 'Search plugins', allPlugins: 'All', installedFilter: 'Installed', updatesFilter: 'Updates', availableFilter: 'Available',
       details: 'Details', closeDetails: 'Close details', configure: 'Configure', enable: 'Enable', disable: 'Disable', official: 'Official feature', community: 'Community plugin', local: 'Local plugin', active: 'Enabled', disabled: 'Disabled', failed: 'Failed to start', managedByApp: 'Managed by DSH App', description: 'Description', noDescription: 'This plugin has no description yet.', sourceInstallTitle: 'Install from source', pendingDetails: 'View changes', author: 'Author',
+      officialSource: 'Official · DeepSeek AI', shippedOfficial: 'Bundled with DSH', optionalOfficial: 'Bundled with DSH · Optional',
       allCategories: 'All categories', loading: 'Loading plugins…', noResults: 'No plugins match.', staleCatalog: 'The catalog could not refresh. Showing the last saved copy.',
       refresh: 'Refresh', checkUpdates: 'Check for updates', checking: 'Checking…',
       install: 'Install', update: 'Update', uninstall: 'Uninstall', cancel: 'Cancel queued change',
@@ -47,6 +49,8 @@ export default function createPluginPagesClient(require) {
     },
   }
   const styles = skillsClient.styles
+  const isOfficialPackage = item => item.packageName?.startsWith('@deepseek-ai/') === true
+  const officialRepository = 'https://github.com/deepseek-ai/deepseek-harness'
   function source(initial) {
     let snapshot = initial
     const listeners = new Set()
@@ -186,7 +190,7 @@ export default function createPluginPagesClient(require) {
       for (const item of installed.values()) if (!items.has(item.name)) items.set(item.name, { packageName: item.name, name: item.name, version: item.version, description: item.description })
       for (const pkg of official.values()) {
         const previous = items.get(pkg.name)
-        items.set(pkg.name, { ...previous, packageName: pkg.name, name: metadataText(pkg.meta?.title) || previous?.name || pkg.name, description: metadataText(pkg.meta?.description) || previous?.description || '', version: previous?.version ?? pkg.version, officialPackage: pkg, id: pkg.name })
+        items.set(pkg.name, { ...previous, packageName: pkg.name, name: metadataText(pkg.meta?.title) || previous?.name || pkg.name, description: metadataText(pkg.meta?.description) || previous?.description || '', version: pkg.version ?? previous?.version, url: pkg.name.startsWith('@deepseek-ai/') ? officialRepository : previous?.url, officialPackage: pkg, id: pkg.name })
       }
       const needle = query.trim().toLocaleLowerCase()
       return [...items.values()].filter(item => {
@@ -197,7 +201,7 @@ export default function createPluginPagesClient(require) {
         if (filter === 'available' && own) return false
         if (category && !categories.includes(category)) return false
         return !needle || `${localized(item.name)} ${item.packageName || item.install || item.id} ${localized(item.description)}`.toLocaleLowerCase().includes(needle)
-      }).sort((left, right) => Number(!installed.has(left.packageName)) - Number(!installed.has(right.packageName)))
+      }).sort((left, right) => Number(isOfficialPackage(right)) - Number(isOfficialPackage(left)) || Number(!installed.has(left.packageName)) - Number(!installed.has(right.packageName)))
     }, [catalog, installed, official, filter, query, category, locale, resolveText])
     const pages = Math.max(1, Math.ceil(rows.length / pageSize))
     const current = Math.min(page, pages)
@@ -209,10 +213,10 @@ export default function createPluginPagesClient(require) {
     const identityOf = item => item.packageName || item.id
     const selected = rows.find(item => identityOf(item) === selectedId)
     const urlOf = item => { try { const url = new URL(item.url); return url.protocol === 'https:' && !url.username && !url.password ? url.href : null } catch { return null } }
-    const kindOf = item => item.packageName?.startsWith('@deepseek-ai/') ? 'official' : installed.get(item.packageName)?.source === 'local' ? 'local' : 'community'
+    const kindOf = item => isOfficialPackage(item) ? 'official' : installed.get(item.packageName)?.source === 'local' ? 'local' : 'community'
     const statusOf = item => {
       const own = installed.get(item.packageName), queued = pending.get(item.packageName)
-      return queued ? pendingLabel(queued.kind) : own ? t(own.phase === 'failed' ? 'failed' : own.enabled === false ? 'disabled' : 'installedFilter') : t(kindOf(item))
+      return queued ? pendingLabel(queued.kind) : own ? t(own.phase === 'failed' ? 'failed' : own.enabled === false ? 'disabled' : 'installedFilter') : item.officialPackage ? t(item.officialPackage.error ? 'failed' : item.officialPackage.enabled ? 'active' : 'disabled') : t(kindOf(item))
     }
     const openDetails = item => {
       if (item.officialPackage && onConfigure) onConfigure(item.packageName)
@@ -255,8 +259,9 @@ export default function createPluginPagesClient(require) {
         let url = null
         try { const parsed = new URL(item.url); if (parsed.protocol === 'https:') url = parsed.href } catch { /* Catalog rows without a valid HTTPS project URL have no external link. */ }
         const identity = item.packageName || item.id
-        return h('article', { key: identity, className: 'dsh-app-market-card', 'data-dsh-app-market-package': identity },
+        return h('article', { key: identity, className: 'dsh-app-market-card', 'data-dsh-app-market-package': identity, 'data-dsh-app-plugin-source': kindOf(item) },
           h('button', { type: 'button', className: 'dsh-app-market-card-head', onClick: () => openDetails(item), 'aria-label': `${t('details')}: ${localized(item.name) || identity}` }, h('span', { className: 'dsh-app-market-artwork', 'aria-hidden': true }, h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5 }, h('path', { d: 'M9 3h6v5h5v6h-5v7H9v-7H4V8h5Z' }))), h('span', {}, h('h3', {}, localized(item.name) || identity), h('small', {}, statusOf(item)))), h('p', {}, localized(item.description) || t('noDescription')),
+          isOfficialPackage(item) ? h('div', { className: 'dsh-app-market-origin' }, h('span', { className: 'dsh-app-market-origin-badge' }, t('officialSource')), item.officialPackage && !item.officialPackage.installed ? h('small', {}, t(item.officialPackage.optional ? 'optionalOfficial' : 'shippedOfficial')) : null) : null,
           h('small', {}, `${t('version')}: ${own?.version ?? item.version ?? '—'}${own?.updateAvailable && own.latestVersion ? ` → ${own.latestVersion}` : ''}`),
           h('footer', {}, actionsFor(item),
           url ? h('a', { href: url, target: '_blank', rel: 'noreferrer noopener' }, t('source')) : null))

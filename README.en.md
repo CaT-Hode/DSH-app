@@ -1,110 +1,128 @@
-<p align="center"><img src="desktop/DSH.svg" width="96" alt="DSH App whale icon"></p>
-<h1 align="center">DSH App</h1>
-<p align="center">A Codex-style DSH workbench: shared Desktop and Web, with files, Git, skills, MCP and usage in one client.</p>
-<p align="center"><a href="README.md">简体中文</a> · <strong>English</strong> · <a href="https://github.com/CaT-Hode/DSH-app/releases">Releases</a> · <a href="https://github.com/CaT-Hode/DSH-app/issues">Report an issue</a></p>
 <p align="center">
-  <img src="https://img.shields.io/badge/DSH-Plugin-4d6bfe" alt="DSH plugin">
-  <img src="https://img.shields.io/badge/Windows-Electron-1673c9" alt="Windows Electron">
-  <img src="https://img.shields.io/badge/Node.js-24%2B-339933" alt="Node.js 24+">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue" alt="MIT"></a>
+  <img src="docs/assets/readme/hero.png" width="100%" alt="DSH App — Your agent. Your workspace. A blue whale above a graphite workbench">
 </p>
 
-DSH App is a community plugin for Windows with its own client layout and Electron shell. Desktop and browser connect to the same backend in your existing `web` profile, retaining conversations, models and compatible extensions. This is not the official DeepSeek desktop client, and it does not depend on the Codex UI plugin.
+<h1 align="center">DSH App</h1>
+<p align="center"><strong>Conversations, files and agents. One shared workspace.</strong></p>
+<p align="center">A Codex-style client for DeepSeek Harness · Windows Desktop + Web</p>
+<p align="center"><a href="README.md">简体中文</a> · <strong>English</strong> · <a href="https://github.com/CaT-Hode/DSH-app/releases">Releases</a> · <a href="https://github.com/CaT-Hode/DSH-app/issues">Report an issue</a></p>
+<p align="center">
+  <a href="https://github.com/CaT-Hode/DSH-app"><img src="https://img.shields.io/badge/DSH-Plugin-4d6bfe?style=flat-square" alt="DSH Plugin"></a>
+  <img src="https://img.shields.io/badge/Desktop-Windows-45454d?style=flat-square" alt="Windows Desktop">
+  <img src="https://img.shields.io/badge/Node.js-24%2B-339933?style=flat-square" alt="Node.js 24+">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-4d6bfe?style=flat-square" alt="MIT License"></a>
+</p>
+<p align="center"><a href="#see-it-in-action">Demos</a> · <a href="#what-makes-it-different">Features</a> · <a href="#quick-start">Quick start</a> · <a href="#plugin-compatibility-and-migration">Compatibility</a> · <a href="#faq">FAQ</a></p>
 
-[Features](#features) · [Integrated-and-conflicting-plugins](#integrated-and-conflicting-plugins) · [Demos](#demos) · [Installation](#installation) · [Usage](#usage) · [Update-and-uninstall](#update-and-uninstall) · [FAQ](#faq)
+DSH App brings DSH conversations, projects, files and extensions into one workbench. Desktop and browser connect to the same `web` profile, keeping your existing models, sessions and compatible plugins. Open the right-hand workbench yourself, or let the agent in your current conversation control it.
 
-## Features
+This community plugin provides its own layout and Electron shell. Codex is an interaction design reference; DSH App does not depend on the Codex UI plugin and is not the official DeepSeek desktop client.
 
-- **One workbench:** navigation rail, project and session sidebar, integrated title bar, main-area Settings, light/dark appearance and consistent fonts, shared by Desktop and Web.
-- **Files and Git included:** the integrated Better Sidebar engine retains its editor, previews, diffs, tasks, side chat and extension contribution APIs.
-- **One plugin center:** Browse combines discovery and installed management, with Skills and MCP as primary subpages. Cancellable requests and restart apply package changes.
-- **Balance and usage together:** the sidebar shows the official DeepSeek API balance; one page combines costs, tokens, budgets and current-session context while retaining historical accounting.
-- **Visible startup and recovery:** backend logs appear inside the window, with independent diagnostics, retry and recovery actions when a valid backup exists.
+## See it in action
 
-| Task | What DSH App provides |
+### One canvas. A workbench when you need it.
+
+The floating sidebar holds outputs, session information and working content. Opening it leaves reading space for the conversation; hiding it recenters the text. New chats start with the workbench hidden. Files, previews and Side Chat share one tool launcher.
+
+![Floating workbench: reveal, preview a file, prepare a Side Chat draft, hide and restore](docs/assets/readme/workbench.gif)
+
+### Plugin pages and settings, together
+
+The left-rail `…` menu collects third-party extension pages. Separate settings open from a gear on the same row. A single-page plugin opens directly without a redundant settings button.
+
+![Extension integration: Smart Notes, its settings gear and Task Board](docs/assets/readme/extensions.gif)
+
+### Skills and MCP belong to the workflow
+
+Switch between Browse, Skills and MCP in one plugin center instead of searching through separate management plugins.
+
+![One plugin center: Browse, Skills and MCP](docs/assets/readme/plugin-center.gif)
+
+<details>
+<summary>About these recordings</summary>
+
+These GIFs show the current DSH App client using an isolated DSH `0.2.0-rc.2` configuration, a sample workspace and a locally prepared demonstration conversation. They contain no personal conversations or API keys. Side Chat shows an unsent draft; no model messages are sent. Pauses and playback timing are adjusted for clarity and are not a performance benchmark. The header is generated brand artwork; the GIFs show the actual interface.
+
+[Asset provenance and recording notes](docs/assets/readme/README.md)
+
+</details>
+
+## What makes it different
+
+### Conversations and working content share a canvas
+
+The navigation rail, project sidebar, header, composer and floating workbench use a consistent graphite surface hierarchy, with light and dark appearances. The message body and workbench coordinate their layout to keep conversations readable. The whale welcome screen asks what to do in the selected project; without a project it invites you to explore.
+
+### Files, previews and Git stay close to the conversation
+
+Built-in tools include a file tree, search, uploads, ZIP downloads, CodeMirror editing, Markdown / Mermaid / HTML / web previews, Git changes and changes from the current AI turn. The Better Sidebar extension APIs remain available while its layout, start page and settings are redesigned. Working content restores with its conversation; the original sidebar plugin is not required.
+
+### Agents can put relevant content in front of you
+
+Enable agent sidebar control to let the current agent open a file at a line, show a web page or extension tab, read tab state, switch content and hide the workbench. Commands bind to the calling conversation and receive client execution acknowledgements. Preparing a Side Chat draft and references never sends the message automatically.
+
+```js
+// Open a file in the current workspace at a specific line
+sidebar_open_view({ target: "src/main.ts", line: 20 })
+
+// Prepare an editable review draft for the user
+sidebar_open_view({
+  target: "sidechat", type: "tab", title: "Code review",
+  draft: "Please review the current changes",
+  context: [{ title: "Focus", text: "Check error handling and boundary cases" }]
+})
+```
+
+| Agent tool | Purpose |
 | --- | --- |
-| Use Desktop and Web together | One backend, one `web` profile, shared conversations and plugins |
-| Open and close the app | Native window, whale tray and single-instance behavior; close to tray |
-| Navigate the workbench | Integrated title bar, search, back/forward, action menu and window controls |
-| Built-in client layout | Icon navigation rail, project and session sidebar, full conversation search, and rounded conversation and composer surfaces shared by desktop and Web |
-| Recover from startup failures | Saved light/dark appearance, live backend logs and elapsed time; failed front-end loads return to a safe page with retry, diagnostics and backup-backed recovery actions |
-| Update core and plugins | Core update button only when a newer release exists; installation, restart, configuration backup and recovery |
-| Diagnose and recover | Plugin status and startup-failure logs, individual disable/retry, plugin-update recovery and rollback to a backed-up DSH version |
-| Track model configuration | Original model IDs, ASS provider markers and observed configuration changes |
-| Track cost and balance | Official DeepSeek API account balances, local tokens, model-usage estimates, budget reminders, and imported `dsh-cost-meter` history |
-| Inspect context | Current-session occupancy and composition, request trends, tool timing, compactions and recent activity, integrated into Cost and usage |
-| Built-in plugin market | Search, categories, source installation and installed-plugin update checks; persistent install, update and removal requests applied during desktop restart |
-| Built-in skill management | Browse, create, edit, enable, import and restore skills under Plugins → Skills, using local and project libraries |
-| Built-in MCP | Connections, catalog, OAuth, custom servers, discovery, policies, workspace scopes and backups under Plugins → MCP, retaining original image and emoji artwork |
-| Built-in sidebar workbench | File tree, search, upload and ZIP, CodeMirror, Markdown/Mermaid/HTML previews, Git staging/commits/history/worktrees, AI changes, subagents and tasks, Side Chat, split workbench and extension viewers, using the official right sidebar and terminal |
+| `sidebar_open_view` | Open a file, folder, web page, DSH resource or registered tab |
+| `sidebar_get_tabs` | Read actual tabs, available content, visibility and connection state |
+| `sidebar_activate_tab` | Activate a tab and reveal the workbench |
+| `sidebar_close_tab` | Close a tab |
+| `sidebar_set_visibility` | Show or hide the workbench while retaining its contents |
 
-The package owns its client layout, desktop window and maintenance features, with no Codex UI dependency. Official DSH services and components continue to handle projects, sessions, archiving, model selection and sending. The rail exposes Chat, Automations, Plugins and Settings. Plugins contains Browse, Skills and MCP. Browse merges discovery with installed management through All, Installed, Updates and Available filters; Skills and MCP do not add duplicate Settings or rail entries. Conversation search remains available from the search button.
+See the [integrated sidebar guide](lib/sidebar/README.md) for complete behavior, acknowledgement states and extension interfaces.
 
-The gear button opens official Settings sections in the main area. MCP uses an owned React page that directly follows DSH appearance and fonts, without embedding the old web app. Interface text uses local Segoe UI and Microsoft YaHei fonts; code and logs remain monospace. Native caption controls are 30 DIP high, leaving a gap above the rounded main panel.
+### Side Chat is a conversation you can keep using
 
-The current validation baseline is DSH `0.2.0-rc.2`, a release candidate. Other core versions require renewed client API checks; successful installation alone does not establish compatibility.
+Side Chat supports multiple conversations, history, renaming, independent drafts and context references. Reference a main-chat draft, selected text or an open file. Copy an answer, add it to the main-chat draft, or turn a completed side conversation into a continuing main conversation. Streaming responses, reasoning, tools, subagents, stopping and reconnection remain available.
 
-Full-text search builds a local in-memory index on the first query, without contacting an external service or loading that index during cold startup. The first query can take longer than subsequent queries. Explicit profile search settings override the bundle default.
+Later main-chat messages are not automatically synchronized into an existing Side Chat. You review and send the draft and references. Open side conversations can restore after a refresh or restart.
 
-## Integrated and conflicting plugins
+### Plugin compatibility goes beyond adding a button
 
-> **Resolve duplicate plugins before installation.** DSH App already provides the features below. Remove or disable each predecessor's complete bundle in the same profile. Hiding a button can still leave duplicate routes, storage owners, model tools or client modules. The built-in market omits these packages and rejects reinstalling them; direct CLI installs still require care. DSH App does not automatically uninstall your plugins.
+Third-party `settings.section` and `settings.plugins.tab` registrations retain their native forms and controllers. Pages and settings with reliable ownership share one row without duplicate destinations. Single-page plugins have no gear; multiple settings pages offer a chooser. The menu follows plugin registration, disabling and unloading.
 
-| Predecessor package | Replacement in DSH App | Conflict when both are enabled |
-| --- | --- | --- |
-| `dsh-better-sidebar` | Built-in files, Git, tasks, Side Chat and split workbench | Duplicate `/sidebar` routes, workbench registrations and public module names |
-| `dsh-mcp-connector` | **Plugins → MCP** | Competing MCP storage, grant and connection services |
-| `@michengai/dsh-codex-ui` | Owned layout, rail, session sidebar and title bar | Competing sidebar and main-view ownership |
-| `dshmarket` | **Plugins → Browse** | Competing installation queues, updates and restart flows |
-| `dsh-cost-meter` | **Cost and usage** | Duplicate usage listeners and accounting |
-| `dsh-context` | **Cost and usage → Current conversation** | Duplicate context displays and event statistics |
-| `@linxin666/dsh-client-ui-skill-explorer` | **Plugins → Skills** | Duplicate skill browsing and configuration |
-| `@michengai/dsh-skills-manager` | **Plugins → Skills** and official skill providers | Competing skill sources, invocation policies and registrations |
+The built-in marketplace places official plugins first and labels their provenance, version and optional bundled status. Install, update and uninstall operations enter a cancellable queue, apply through the official CLI after restart, and retain backup and recovery records.
 
-Integration has two implementations. The MCP Host retains the MIT-licensed `dsh-mcp-connector@0.2.63` engine; Better Sidebar retains the MIT-licensed `dsh-better-sidebar@0.24.1` Host, client and lazy runtime scripts. This project rewrites the layout, skills, costs, context and plugin market. Licenses, pinned versions, original file hashes and local changes for the retained engines are recorded in [NOTICE.md](NOTICE.md), [MCP provenance](lib/mcp/upstream/provenance.json) and [sidebar provenance](lib/sidebar/upstream/PROVENANCE.md). Both engines update with DSH App instead of separate predecessor packages.
+### Skills, MCP and usage have clear destinations
 
-Back up the profile and data before migration, then check these items. **Do not delete your DSH data directory:**
+| Area | What it provides |
+| --- | --- |
+| **Skills** | Browse, create, edit, enable and import skills; connect local and project libraries; recover deleted skills |
+| **MCP** | Connections, catalogs, OAuth, custom servers, tool policies, project scope and backup restoration |
+| **Cost and usage** | Official DeepSeek balance, a local usage ledger, token heatmaps, model prices, historical costs and budgets |
+| **Current-session insight** | Context use and composition, request trends, tool latency, failures and compaction activity |
+| **Desktop maintenance** | Single instance and tray, in-window startup logs, diagnostics, retry and backup-supported update recovery |
 
-1. Better Sidebar: copy its effective preferences into DSH App's `sidebar` configuration field before removing the package. Per-session tabs, layouts and editor state retain their storage keys. Extensions retain `ctx.betterSidebar`, tab/viewer/icon/badge/settings registrations and public module aliases. See [the integrated sidebar](lib/sidebar/README.md) for features and APIs.
-2. MCP: keep the original `mcp_connector` storage and grant journal. The integrated engine reuses connections, policies, scopes and backups. While the old MCP package is enabled, the owned Host leaves that storage to it; remove the package and restart to transfer ownership.
-3. Skills: keep skill files and the old manager's state file. The owned implementation reads existing sources and policies, with distinct model and command invocation states. While the old Skills Manager is enabled, the owned providers avoid duplicate registration.
-4. Costs: the first read imports the old ledger without modifying its file. Confirm that history is visible before removing the predecessor. Unpriced calls retain tokens and counts; new prices apply only to subsequent calls.
-5. Market: cancel unfinished `dshmarket` operations before removing it, preventing two queues from managing one profile.
+Skills and MCP remain in the plugin center. Cost and usage keeps its own entry instead of being duplicated in the third-party `…` menu.
 
-Official scheduling, auto-review, Agent Team and voice input, plus compatible extensions such as GitGraph, can remain enabled. This table is not a compatibility guarantee for every community plugin. Uninstalling DSH App removes these integrated features and restores the official sidebar; it does not automatically reinstall predecessor packages.
+## Quick start
 
-## Demos
+### Requirements
 
-These recordings show the earlier desktop shell, **not the current 0.3.6 workbench layout**.
+- **Windows**, **Node.js 24+** and **pnpm 11**.
+- [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) installed, with `dsh` available in your terminal.
+- Current plugin version: **0.3.6**. Validated client baseline: **DSH 0.2.0-rc.2**, with Electron **44**. Other core versions require interface compatibility checks.
+- Read the migration notes first if you already use separate sidebar, Codex UI, marketplace, MCP or cost plugins.
 
-**Desktop window and title bar**
-
-![DSH App desktop and title bar](https://raw.githubusercontent.com/CaT-Hode/DSH-app/media/v0.2.0/desktop.gif)
-
-**Diagnostics and functional checks**
-
-![DSH App diagnostics and functional checks](https://raw.githubusercontent.com/CaT-Hode/DSH-app/media/v0.2.0/diagnostics.gif)
-
-Recorded with real DSH `0.1.7-rc.2`, the stock Web interface and a separate demo home without personal conversations. GIFs show key frames captured in one run. The check sends no model messages; playback is paced to show the workflow, not to measure performance.
-
-## Installation
-
-### Prerequisites
-
-- Windows, **Node.js 24+** and **pnpm 11**.
-- An installed [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), with `dsh` available in your terminal.
-- DSH App **0.3.6** targets the DSH **0.2.0-rc.2** client APIs. Its package version requirement prevents activation on older cores. Electron is **44**; run the functional check when using another core version.
-- Remove or disable duplicate bundles using the conflict table above, retaining preferences and data needed for migration.
-
-### 1. Add the plugin
-
-Run in PowerShell:
+### 1. Install into your Web profile
 
 ```powershell
 dsh plugin --profile web add 'git+https://github.com/CaT-Hode/DSH-app.git'
 ```
 
-This is a GitHub installation source. There is currently no npm release named `dsh-app` from this project. A `.tgz` downloaded from Releases can also be passed to `dsh plugin --profile web add`.
+Use the GitHub source, or pass a Releases `.tgz` path to the same command. This project currently does not use an npm release as its installation source.
 
 ### 2. Activate it once
 
@@ -112,120 +130,95 @@ This is a GitHub installation source. There is currently no npm release named `d
 dsh --profile web --no-open
 ```
 
-Wait for the Web server to become ready. The plugin remembers the DSH launch entry. Press `Ctrl+C` to stop this foreground server.
+Wait for the Web service to become ready, then stop it with `Ctrl+C`. The plugin records the DSH launch entry point.
 
-### 3. Open the desktop app
+### 3. Open the desktop client
 
 ```powershell
-$dshHome = if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $HOME '.dsh' }
-& (Join-Path $dshHome 'profiles\web\node_modules\.bin\dsh-app.cmd')
+$dshData = if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $HOME '.dsh' }
+& (Join-Path $dshData 'profiles\web\node_modules\.bin\dsh-app.cmd')
 ```
 
-Use step 3 for later cold starts. Electron opens its own window; the backend console is hidden and its startup output appears inside the app. Loading and safe failure pages read the active profile's appearance preference before the backend starts: white in light mode, black in dark mode, and the system appearance when System is selected or no preference is saved.
+Use step three for subsequent launches. Configure a model in **Settings → Models** and add a working directory. Closing the window keeps it in the tray; quit completely through the tray menu or `dsh-app --quit`.
 
 <details>
 <summary>Ask a local agent to install it</summary>
 
 ```text
-Follow https://github.com/CaT-Hode/DSH-app to install DSH App into my existing web profile. Verify the core version, Node.js 24+ and pnpm 11. Back up the profile and data, migrate predecessor preferences and remove duplicate plugins using the conflict table, retaining models, conversations and compatible extensions. Add the GitHub plugin source, start Web once to activate it, then open dsh-app.cmd. Do not delete old ledgers, MCP storage or skill files, or confuse this project with an npm package named dsh-app.
+Install DSH App into my web profile using https://github.com/CaT-Hode/DSH-app and its README. Verify Node.js 24+, pnpm 11 and the DSH core version. Back up the profile, handle conflicting plugins using the migration table, and preserve models, conversations, MCP storage, skills and accounting data. Use the GitHub source, activate Web once, then open dsh-app.cmd. Do not delete the DSH data directory.
 ```
 
 </details>
 
-## Usage
+## Plugin compatibility and migration
 
-| Goal | Entry point |
+These capabilities are integrated. **Do not enable their original plugins in the same profile.** Hiding a button can leave duplicate routes, services or listeners. Back up configuration and data before migrating; DSH App does not uninstall other plugins automatically.
+
+| Integrated original plugin | Destination |
 | --- | --- |
-| Open the same service in a browser | Tray or title-bar menu → **Open in browser** |
-| Inspect diagnostics | Title-bar `…` or whale tray → **Diagnostics and recovery** |
-| Recover a startup or front-end failure | Safe startup page → **Restart / Diagnostics and recovery**; plugin or DSH recovery appears when a valid backup exists |
-| Exercise conversation and model operations | Diagnostics → **Run functional check** |
-| Disable a failing plugin | Plugins → **Disable and restart** |
-| Retry the plugin | The same page → **Enable and restart** |
-| Inspect model changes | **Model sources / Change history** |
-| Inspect costs and balance | **Cost and usage** at the bottom of the sidebar shows the official API balance, monthly costs, tokens and budget; click it for details. The shared Web service also serves `/dsh-app/cost` |
-| Inspect the selected conversation's context | **Current conversation** on the same **Cost and usage** page, or click the context summary beneath the composer |
-| Manage skills | **Plugins → Skills**, for viewing, creation, editing, enablement, import, recovery and library settings |
-| Configure files, previews and task workbench | **Settings → General** uses compact rows for defaults, feature switches and extension options; Side card is no longer a separate page |
-| Reload the interface | `Ctrl+R` |
-| Hide or quit | Close hides to tray; **Exit DSH App** in the tray fully quits |
+| `dsh-better-sidebar` | Right workbench: files, Git, previews and Side Chat |
+| `@michengai/dsh-codex-ui` | DSH App navigation rail, project sidebar, header and conversation layout |
+| `dshmarket` | Plugins → Browse |
+| `dsh-mcp-connector` | Plugins → MCP |
+| `dsh-cost-meter` / `dsh-context` | Cost and usage / current session |
+| `@linxin666/dsh-client-ui-skill-explorer` / `@michengai/dsh-skills-manager` | Plugins → Skills |
 
-After authenticating to the shared backend, a browser can read the same records at `/dsh-app/diagnostics`. Restart and recovery actions run in the desktop app. If the DSH front end cannot load, the independent safe startup page can still open diagnostics and run recovery backed by a valid snapshot. The app only stops a backend it owns; an externally started Web server retains its own lifetime.
+[Complete conflict and migration instructions](docs/compatibility.en.md) · [Licenses and attribution](NOTICE.md)
 
-On its first read, the cost page copies daily, model and conversation totals plus pricing and budget settings from an existing `dsh-cost-meter` ledger into a separate file; the original is unchanged. It then records only new model-usage events, with no historical session scan during cold start. Amounts are estimates from saved prices; calls without a price remain counted and marked unpriced. ASS provider IDs are separate from vendor pricing tables. Enter the actual USD rates for that provider and model under **Model prices**, in dollars per million tokens; saved rates apply to subsequent calls and leave historical costs unchanged. Cache reads and writes use separate configured rates, and budgets use the selected display currency. After confirming the history, you can uninstall the old cost plugin through the plugin market.
+Extensions checked in the installed client:
 
-Account balances come from the [official DeepSeek `user/balance` API](https://api-docs.deepseek.com/api/get-user-balance/) and display the original currencies, total, granted and topped-up balances independently of local cost estimates. The server resolves the official credential from the active DeepSeek API-key provider configuration. It explains and skips requests when the official provider is absent, its key is missing, its endpoint points to a third party, or its credential reference is shared with a third-party provider. Keys are never sent to the browser or written into the balance cache; ASS, MIFY and other third-party balances are not queried. Requests begin on the first display and do not hold up startup. Defaults are a five-minute cache, five-second timeout, 60-second error retry interval and 30-second minimum manual refresh interval; configure `balance.refreshMs`, `balance.timeoutMs`, `balance.retryMs` and `balance.minRefreshMs` on the plugin to adjust them. Failed requests retain the same account’s last successful balance with its timestamp and stale status. Changing the key hides the previous account’s balance.
+| Plugin | Verified scope |
+| --- | --- |
+| `@zzerx/dsh-plugin-notes` **0.4.2** | Page and same-row settings gear |
+| `@linxin666/dsh-client-ui-task-board` **0.4.4** | Page, draft creation and deletion, disable and re-enable |
+| `@linxin666/dsh-client-ui-git-graph` **0.4.4** | Real project branches and commit history |
+| `dsh-image-gen` **0.8.5** | Native provider settings, single-page entry, disable and re-enable |
 
-Cost and usage is one continuous page with one page scroll area. A Today, This month or All time selector controls the all-conversation cost, token and call overview; expense history, budgets and prices are expandable. Beneath the account balance, Current conversation follows the selected session and shows context occupancy and estimated composition, request input/output and duration, tool failures, compactions, pruning and injections. It omits duplicate cumulative token and call cards. API usage and character estimates are labeled separately; estimated composition is not a billing input. The module reads the selected conversation's log projections on demand and updates incrementally, without scanning all historical sessions or polling. Request trends and activity retain recent entries. File browsing and team features remain owned by their respective modules.
-
-Plugins → Browse merges the built-in market with installed management and loads the community catalog on demand. It supports search, categories, All/Installed/Updates/Available filters, exact npm versions and GitHub sources. Uncatalogued installed packages remain manageable. Official features retain their official activation and configuration services; retired integrations no longer offer duplicate installation actions. Install, update and uninstall actions create cancellable local requests. Restart and apply stops the backend, backs up the profile, invokes the official `dsh plugin` command and verifies installed versions and activation. Requests become applied only after the backend is ready. Updates retain their previous enabled state; uninstalling retains plugin data. Failures keep the requests, diagnostics and recovery backup. A standalone Web service needs its owner to restart it. The market no longer depends on `dshmarket`; cancel unfinished operations in that plugin before removing it. MCP update guidance opens the built-in market.
-
-DSH App owns skill management without a Skills Manager or Skill Explorer dependency. The page connects to DSH's official skill registry, reads existing local and project libraries, and respects the old manager's source and disabled states without rewriting its state file. Model invocation flags remain in SKILL.md. Editing checks file revisions to avoid overwriting external changes. Removal uses a recoverable trash; restore never replaces an existing file. Local directories, folder uploads, ZIPs and public GitHub sources can be imported. Imports copy files without executing scripts and reject escaping paths, links, collisions and oversized files. Removing the two old community plugins only changes packages and activation; existing skill files remain.
-
-## Update and uninstall
-
-**Update DSH App:** exit the app, repeat the installation command, activate the new plugin through Web, and launch the app again. Once the community catalog lists it, the market's update/restart flow can also be used.
-
-**Update DSH core:** when a newer version exists, click the title-bar update button and choose **Install and restart**. Before switching, the app checks presets, models and conversation operations in a temporary home. It then verifies the rendered interface. A failed upgrade attempts to restore the previous core and configuration. This does not change the global `dsh` command or a source checkout, and does not reverse session or plugin-data migrations.
-
-**Uninstall:** exit the app, then run:
-
-```powershell
-dsh plugin --profile web remove dsh-app
-```
-
-Restart DSH Web to restore its official sidebar. Existing conversations and other plugins remain available; uninstalling does not delete sessions or the cost ledger. Reinstall removed predecessors yourself if needed. Restoring an older core does not replace preference or data migration.
+These records apply to specific versions, not the entire plugin ecosystem. Image generation was not requested, and Task Board checks did not execute model tasks.
 
 ## FAQ
 
 <details>
-<summary>Electron is missing, or the first launch fails</summary>
+<summary>Do Desktop and Web create separate conversations?</summary>
 
-Electron is an optional dependency. Its binary download may require network access; installation policy or a download failure can leave the Host plugin installed without a usable Electron executable. Set `DSH_APP_ELECTRON` to an existing compatible `electron.exe` and retry. If the app cannot locate DSH, complete the one-time Web activation first.
-
-</details>
-
-<details>
-<summary>Does the ASS marker identify who changed a model?</summary>
-
-No. It recognizes ASS's provider-ID convention. Change history retains observed before/after values while the Host runs; external writers stay unknown. First use establishes a baseline, with no invented past history, and intermediate writes between observations can be missed. Model audit records omit API keys.
+No. Both use the same conversations, models and plugin configuration when connected to the same backend and `web` profile. Open the current service in a browser from the header or tray menu.
 
 </details>
 
 <details>
-<summary>Does a functional check call models or change my conversations?</summary>
+<summary>The plugin installed, but Electron will not open.</summary>
 
-It creates blank conversations in a temporary DSH home, changes presets and models, and archives them. It sends no model messages and does not use your existing conversations. It does not validate balances or model responses. Plugins still execute their normal startup effects.
+Electron is an optional dependency; its first download needs network access. Check whether the package manager blocked its install script, or point `DSH_APP_ELECTRON` to a compatible `electron.exe`. Complete the initial Web activation before opening the desktop client.
 
 </details>
 
 <details>
-<summary>Can I configure paths, the port and history retention?</summary>
+<summary>The workbench is hidden, or the agent cannot control it.</summary>
 
-| Setting | Purpose |
-| --- | --- |
-| `DSH_HOME` | Use an existing non-default DSH data directory |
-| `DSH_APP_ELECTRON` | Electron executable path |
-| `DSH_APP_NODE` / `DSH_APP_CLI` | Explicit backend Node and DSH CLI paths |
-| `DSH_APP_PORT` | Loopback port; default `0` lets the OS choose |
-| `DSH_APP_PNPM_CLI` | pnpm 11 `pnpm.cjs` used for core upgrades |
-| Host `auditIntervalMs` | Model observation interval; default 2000 ms, range 500–60000 |
-| Host `historyLimit` | Model change retention; default 200, range 1–2000 |
-| Host `contextInsight.historyLimit` / `contextInsight.activityLimit` | Retained request/activity entries for the selected conversation; default 32 each, range 2–1000 each |
-| Host `contextInsight.toolLimit` / `contextInsight.pendingLimit` | Retained tool names/pending calls; defaults 16/128, range 2–1000 each. Calls beyond the tool-name cap are grouped under Other tools |
-| Host `skills.maxContentBytes` / `skills.maxArchiveBytes` / `skills.maxExpandedBytes` / `skills.maxFiles` | Skill text, ZIP, expanded bytes and file limits; defaults 1 MiB / 32 MiB / 64 MiB / 1000 |
-| Host `skills.requestTimeoutMs` | GitHub skill import request timeout; default 15000 ms, range 1000–60000 |
-
-Startup logs, configuration backups, quarantine records and model history are stored locally under `$DSH_HOME/dsh-app`. The repository-backed Windows adapter uses `desktop-link`. Connection descriptors contain authentication tokens and must not be included in public issue reports.
+New chats start with the workbench hidden. In an existing conversation, the upper-right list icon toggles it and `+` opens the tool launcher. Enable agent control in **Settings → General → Workbench**. Tools affect the calling conversation; disconnected commands wait for that conversation's view to reconnect.
 
 </details>
 
-## Ecosystem and scope
+<details>
+<summary>Will updating or disabling a plugin delete its data?</summary>
 
-DSH App installs through the standard `dsh.bundle.patch` declaration and targets the `web` profile. Community plugins are discoverable through the [dsh-plugin GitHub topic](https://github.com/topics/dsh-plugin). The plugin market uses the [awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) community catalog; its maintainers review submissions.
+Marketplace changes apply through a cancellable queue and restart. Disabling and uninstalling retain plugin data. Failed updates retain logs, queued operations and recovery backups. Updating the DSH core and migrating an old plugin are separate actions; a core rollback does not replace data migration.
 
-The repository retains the `bin/` launcher, `desktop/` shell, `client/` UI source, `lib/` Host and integrated engines, required build scripts and focused behavior checks for those responsibilities. `npm run build` generates the client bundle and sandbox preload. The installation package contains runtime files, READMEs and licenses, excluding tests, test helpers, personal profiles and recording intermediates.
+</details>
 
-See [focused development checks](tests/README.md) for cost, context and the actual DSH browser-factory test setup and commands.
+<details>
+<summary>How do estimated costs differ from the API balance?</summary>
 
-MIT · See [NOTICE.md](NOTICE.md) for artwork and project attribution.
+The balance comes from the official DeepSeek account endpoint. Costs are local estimates based on configured model prices. Unpriced calls, estimated context composition and actual API tokens are labeled separately; character-based context estimates are not used for billing.
+
+</details>
+
+See the [usage guide](docs/guide.en.md) for navigation, configuration, diagnostics, updates and uninstalling.
+
+## Development and credits
+
+`client/` contains UI source, `desktop/` the Electron shell, and `lib/` Host services and integrated engines. `npm run build` generates the client and sandbox preload. Development setup and focused behavioral checks are documented in [tests/README.md](tests/README.md).
+
+DSH App uses official DSH session, project, model, skill and connection services. The MCP engine is integrated from `dsh-mcp-connector@0.2.63`, and the sidebar engine from `dsh-better-sidebar@0.24.1`, retaining their licenses, provenance, hashes and modification records. Thanks to DeepSeek Harness and the community plugin authors.
+
+[MCP provenance](lib/mcp/upstream/provenance.json) · [Sidebar provenance](lib/sidebar/upstream/PROVENANCE.md) · [NOTICE](NOTICE.md) · [MIT License](LICENSE)

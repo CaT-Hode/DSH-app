@@ -63,6 +63,10 @@ test('built workbench composes into released General settings with real primitiv
     slots, locale, connection: {}, remote: { $host: { isLoopback: false }, $on: (_event, callback) => { remoteListeners.add(callback); return () => remoteListeners.delete(callback) } },
     sessions: { list: { subscribe: () => () => {} } }, modules: {}, layout: {}, uiWorkspace: {}, conversation: {},
     get(name) { return this[name] }, provide(name, value) { this[name] = value },
+    inject(dependencies, callback) {
+      if (!dependencies.every(name => this.get(name) !== undefined)) return () => {}
+      return callback(this) ?? (() => {})
+    },
     effect(callback, label = '') {
       if (owned) effectLabels.push(label)
       // This focused composition runs preferences/registry effects; viewport portals and desktop observers belong to browser QA.

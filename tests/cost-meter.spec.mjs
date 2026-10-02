@@ -83,7 +83,7 @@ test('serves the cost page and persists authenticated settings through the HTTP 
     const page = await fetch(`${origin}/dsh-app/cost`, { headers })
     assert.equal(page.status, 200)
     assert.match(page.headers.get('content-security-policy'), /frame-ancestors 'self'/)
-    assert.match(await page.text(), /id="pricing"/)
+    assert.match(await page.text(), /id="budget-overview"/)
     const script = await fetch(`${origin}/dsh-app/cost-ui.js`, { headers })
     assert.equal(script.status, 200)
     assert.match(script.headers.get('content-security-policy'), /frame-ancestors 'none'/)
@@ -168,9 +168,8 @@ test('embedded cost settings notify the same-origin sidebar after saving and kee
     }
     const html = readFileSync(new URL('../lib/cost-meter.html', import.meta.url), 'utf8')
     const nodes = new Map([...html.matchAll(/<([a-z]+)\b[^>]*\bid="([^"]+)"[^>]*>/g)].map(match => [match[2], new Element(match[1])]))
-    const selectedPeriod = /<select id="usage-period">[\s\S]*?<option value="([^"]+)" selected/.exec(html)
-    assert.ok(selectedPeriod, 'the current period selector declares its initial selection')
-    nodes.get('usage-period').value = selectedPeriod[1]
+    const selectedPeriod = /<button type="button" id="heatmap-(\w+)"[^>]*aria-pressed="true"/.exec(html)
+    assert.ok(selectedPeriod, 'the merged period control declares its initial selection')
     const node = id => {
       assert.ok(nodes.has(id), `the rendered cost document contains ${id}`)
       return nodes.get(id)
@@ -209,16 +208,13 @@ test('embedded cost settings notify the same-origin sidebar after saving and kee
     assert.match(node('budget-label').textContent, /未计价费用未扣除/)
     assert.deepEqual(notifications.map(value => value.origin), [origin])
     assert.equal(notifications[0].message.type, 'dsh-app:cost-changed')
-    for (const [id, value] of [['input', '1'], ['cache', '0.1'], ['write', '1.25'], ['output', '2']]) node(`price-${id}`).value = value
-    await node('pricing').listeners.submit({ preventDefault() {} })
-    assert.equal(notifications.length, 2)
-    assert.equal(ledger.summary().routes[0].price.cacheWrite, 1.25)
+    // Model prices moved to Settings → Models, so this page only reports usage.
     assert.equal(node('usage-cost').textContent, '未计价')
     assert.equal(node('days').children[0].children[5].textContent, '未计价')
     node('refresh-balance').listeners.click()
     await new Promise(resolve => setImmediate(resolve))
-    assert.equal(notifications[2].message.type, 'dsh-app:balance-changed')
-    assert.equal(notifications[2].origin, origin)
+    assert.equal(notifications[1].message.type, 'dsh-app:balance-changed')
+    assert.equal(notifications[1].origin, origin)
   } finally { rmSync(home, { recursive: true, force: true }) }
 })
 

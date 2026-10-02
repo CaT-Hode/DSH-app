@@ -1,0 +1,63 @@
+.dsh-app-price-section {
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 26px 0 0;
+  border-top: 1px solid var(--dsw-alias-border-l1);
+  margin-top: 24px;
+}
+.dsh-app-price-section *, .dsh-app-price-section *::before, .dsh-app-price-section *::after { box-sizing: border-box; }
+.dsh-app-price-section h2 { margin: 0; font: inherit; font-size: 16px; font-weight: 600; letter-spacing: -.015em; }
+.dsh-app-price-section h3 { margin: 22px 0 12px; font-size: 13px; font-weight: 600; letter-spacing: .01em; }
+.dsh-app-price-intro { margin: 6px 0 18px; color: var(--dsw-alias-label-secondary); font-size: 13px; max-width: 76ch; }
+.dsh-app-price-note { color: var(--dsw-alias-label-secondary); font-size: 13px; }
+.dsh-app-price-ok { color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.dsh-app-price-error { color: var(--dsw-alias-state-error-primary, #c0392b); font-size: 12px; }
+
+/* Price table: quiet chrome, one row per model and tier. */
+.dsh-app-price-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; }
+.dsh-app-price-table th, .dsh-app-price-table td { padding: 9px 10px; border-bottom: 1px solid var(--dsw-alias-border-l1); text-align: right; white-space: nowrap; }
+.dsh-app-price-table th:first-child, .dsh-app-price-table td:first-child { text-align: left; white-space: normal; }
+.dsh-app-price-table th { color: var(--dsw-alias-label-secondary); font-weight: 500; font-size: 12px; }
+.dsh-app-price-table tbody tr:hover { background: var(--dsw-alias-interactive-bg-hover, #0000000a); }
+.dsh-app-price-table tr:last-child td { border-bottom: 0; }
+.dsh-app-price-route { font-weight: 450; }
+.dsh-app-price-chip {
+  display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; font-size: 11px; line-height: 1.6;
+  border: 1px solid var(--dsw-alias-border-l2); color: var(--dsw-alias-label-secondary);
+}
+.dsh-app-price-chip[data-tone="peak"] { border-color: color-mix(in srgb, #d98324 45%, transparent); color: color-mix(in srgb, #d98324 80%, var(--dsw-alias-label-primary)); }
+.dsh-app-price-chip[data-tone="off"] { border-color: color-mix(in srgb, #3b82f6 40%, transparent); color: color-mix(in srgb, #3b82f6 70%, var(--dsw-alias-label-primary)); }
+.dsh-app-price-chip[data-tone="warn"] { border-style: dashed; }
+
+/* Editor: picker row on top, then one compact row of four rates per tier. */
+.dsh-app-price-editor, .dsh-app-price-peak { border-top: 1px solid var(--dsw-alias-border-l1); padding-top: 2px; }
+.dsh-app-price-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 16px; }
+.dsh-app-price-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.dsh-app-price-field > span { color: var(--dsw-alias-label-secondary); font-size: 12px; white-space: nowrap; }
+.dsh-app-price-field input, .dsh-app-price-field select {
+  font: inherit; font-size: 13px; color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-base);
+  border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; padding: 7px 10px; min-height: 34px; width: 100%; min-width: 0;
+}
+.dsh-app-price-field input:focus-visible, .dsh-app-price-field select:focus-visible { outline: 2px solid var(--dsw-alias-label-secondary); outline-offset: 2px; }
+.dsh-app-price-tier { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; padding: 8px 14px 14px; margin: 12px 0 0; min-width: 0; }
+.dsh-app-price-tier legend { padding: 0 6px; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+/* Four short rate boxes on a single row; they only wrap when the pane is genuinely narrow. */
+.dsh-app-price-rates { grid-template-columns: repeat(4, minmax(0, 108px)); justify-content: start; gap: 10px 14px; }
+.dsh-app-price-rates .dsh-app-price-field input { max-width: 108px; }
+@media (max-width: 560px) {
+  .dsh-app-price-rates { grid-template-columns: repeat(2, minmax(0, 108px)); }
+}
+.dsh-app-price-toggle { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 13px; }
+.dsh-app-price-actions { display: flex; gap: 10px; margin-top: 16px; }
+.dsh-app-price-actions button {
+  font: inherit; font-size: 13px; border-radius: 8px; padding: 8px 16px; cursor: pointer; min-height: 34px;
+  border: 1px solid var(--dsw-alias-border-l2); background: transparent; color: var(--dsw-alias-label-primary);
+  transition: background 120ms ease, opacity 120ms ease;
+}
+.dsh-app-price-actions button:hover { background: var(--dsw-alias-interactive-bg-hover, #0000000d); }
+.dsh-app-price-actions button:disabled { opacity: .5; cursor: default; }
+.dsh-app-price-primary { background: var(--dsw-alias-label-primary) !important; border-color: transparent !important; color: var(--dsw-alias-bg-base) !important; font-weight: 550; }
+.dsh-app-price-primary:hover { opacity: .88; }
+.dsh-app-price-danger { color: var(--dsw-alias-state-error-primary, #c0392b) !important; }
