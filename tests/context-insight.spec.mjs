@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import test from 'node:test'
-import { createContextInsightProjection } from '../lib/context-insight.mjs'
+import { createContextInsightProjection, installContextInsight } from '../lib/context-insight.mjs'
 import createContextInsightClient from '../client/context-insight.mjs'
 
 // DSH's release owns its schemas and surface rules; dev dependency overrides do not select them.
@@ -16,13 +16,33 @@ if (!runtimeEntry) {
   }
 }
 const runtime = createRequire(runtimeEntry)
-const { z } = runtime('zod')
+const { z } = ownRequire('zod')
 const sessionExports = runtime('@deepseek-ai/dsh-session')
 const estimator = runtime('@deepseek-ai/dsh-token-meter/estimate')
 const dependencies = { z, ...sessionExports, ...estimator }
 const text = (role, value, source) => ({ id: `message:${value}`, role, content: [{ type: 'text', text: value }], source })
 const event = (seq, type, data, surfaceOp) => ({ seq, type, data, time: 1000 + seq * 10, ...(surfaceOp ? { surfaceOp } : {}) })
 const fold = (definition, events) => events.reduce((state, next) => definition.apply(state, next), definition.init())
+
+test('Host installation uses its own schema dependency and resolves the released CLI junction', t => {
+  const cli = process.env.DSH_CORE_CLI
+  if (!cli) { t.skip('Set DSH_CORE_CLI to exercise the installed CLI junction'); return }
+  const previous = process.argv[1]
+  let registered, removed = false
+  const ctx = {
+    inject(names, callback) { assert.deepEqual(names, ['sessionProjections']); return callback(this) },
+    effect(callback) { return callback() },
+    sessionProjections: { register(definition) { registered = definition; return () => { removed = true } } },
+  }
+  try {
+    process.argv[1] = cli
+    const stop = installContextInsight(ctx)
+    assert.equal(registered.key, 'dshAppContext')
+    registered.stateSchema.parse(registered.init())
+    stop()
+    assert.equal(removed, true)
+  } finally { process.argv[1] = previous }
+})
 
 test('preserves surface positions across a nonnumeric replacement range and retains the official heuristic', () => {
   const definition = createContextInsightProjection(dependencies)

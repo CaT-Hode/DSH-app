@@ -113,7 +113,7 @@ Skills and MCP remain in the plugin center. Cost and usage keeps its own entry i
 
 - **Windows**, **Node.js 24+** and **pnpm 11**.
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) installed, with `dsh` available in your terminal.
-- Current plugin version: **0.3.6**. Validated client baseline: **DSH 0.2.0-rc.2**, with Electron **44**. Other core versions require interface compatibility checks.
+- Current plugin version: **0.3.7**. Validated baselines: **DSH 0.2.0-rc.2 / 0.2.1-rc.2**, with Electron **44**. Upgrading to 0.2.1 requires compatible IM Connect, Code Review and Simplify versions and removing the retired experimental Schedule bundle, now included in the official Web composition; retain existing configuration and data.
 - Read the migration notes first if you already use separate sidebar, Codex UI, marketplace, MCP or cost plugins.
 
 ### 1. Install into your Web profile

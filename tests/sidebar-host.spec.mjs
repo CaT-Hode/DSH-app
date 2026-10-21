@@ -18,7 +18,7 @@ async function fixture(t) {
   const ctx = {
     fiber,
     logger: { info() {}, warn() {} },
-    webRuntime: { trustedHosts: [] },
+    connection: { trustedHosts: [] },
     webServer: {
       register(route) { assert.equal(routes.has(route.path), false); routes.set(route.path, route.handler); return () => routes.delete(route.path) },
       registerUpgrade(route) { assert.equal(upgrades.has(route.path), false); upgrades.set(route.path, route.handler); return () => upgrades.delete(route.path) },
@@ -117,12 +117,13 @@ test('released Cordis mounts the owned Host and removes all scoped routes on dis
   assert.ok(runtime, 'Set DSH_APP_TEST_CORE_ROOT to the supported released DSH runtime')
   const { Context } = await import(pathToFileURL(join(runtime, 'node_modules/@deepseek-ai/cordis/lib/index.js')).href)
   const f = await fixture(t), root = new Context()
-  const services = await root.plugin({ name: 'sidebar-fixture-services', apply(ctx) { for (const name of ['webServer', 'sessions', 'webRuntime', 'tools', 'loader', 'settings']) ctx.provide(name, f.ctx[name]) } })
+  const services = await root.plugin({ name: 'sidebar-fixture-services', apply(ctx) { for (const name of ['webServer', 'sessions', 'connection', 'tools', 'loader', 'settings']) ctx.provide(name, f.ctx[name]) } })
   t.after(() => services.dispose())
   const owner = await root.plugin({ name: 'owned-sidebar-test', inject: ['loader', 'settings'], apply(ctx) { installSidebar(ctx, Config({})) } })
   t.after(() => owner.dispose())
   assert.equal(f.routes.has('/sidebar/api'), true)
-  assert.equal(f.upgrades.size, 2)
+  assert.equal(f.upgrades.size, 3)
+  assert.ok(f.upgrades.has('/sidebar/ws/agent-control'), 'the connection service activates authenticated agent control')
   await owner.dispose()
   assert.equal(f.routes.size, 0)
   assert.equal(f.upgrades.size, 0)

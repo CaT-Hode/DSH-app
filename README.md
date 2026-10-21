@@ -113,7 +113,7 @@ Side Chat 支持多个会话、历史记录、重命名、独立草稿和上下�
 
 - **Windows**、**Node.js 24+**、**pnpm 11**。
 - 已安装 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)，终端可运行 `dsh`。
-- 当前插件版本 **0.3.6**，客户端验证基线 **DSH 0.2.0-rc.2**，Electron **44**。其他核心版本需重新验证接口兼容性。
+- 当前插件版本 **0.3.7**，验证基线 **DSH 0.2.0-rc.2 / 0.2.1-rc.2**，Electron **44**。升级到 0.2.1 时需更新 IM Connect、Code Review 和 Simplify，并移除已并入官方 Web 的旧实验定时任务 bundle；保留原配置与数据。
 - 若已安装旧的侧栏、Codex UI、市场、MCP 或费用插件，先阅读下方迁移说明。
 
 ### 1. 安装到现有 Web profile

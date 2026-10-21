@@ -37,9 +37,8 @@ function fixture(t, initial = {}) {
     agents: { list: () => agents },
     workspaceRegistry: { list: () => [], get: () => undefined, findForAgent: () => undefined },
     loader: { resolve(id) { if (!loaderEntries.has(id)) throw new Error('not found'); return loaderEntries.get(id) }, async create(item) { loaderEntries.set(item.id, { options: item }); return item.id }, async update(id, patch) { Object.assign(loaderEntries.get(id).options, patch) }, async remove(id) { loaderEntries.delete(id) } },
-    webRuntime: { trustedHosts: ['dsh.example:443'] },
     webServer: { register(route) { routes.set(route.path, route.handler); return () => routes.delete(route.path) } },
-    connection: { requestRejection: () => undefined },
+    connection: { trustedHosts: ['dsh.example:443'], requestRejection: () => undefined },
   }
   t.after(async () => { for (const dispose of effects.reverse()) await dispose() })
   return { ctx, effects, routes, tables, registered, guards, domains, entries, restrictions, loaderEntries, get closed() { return closed } }
@@ -174,7 +173,7 @@ test('released Cordis validates the child plugin and tears down its MCP contribu
   if (!runtime) { t.skip('DSH_APP_TEST_RUNTIME selects the released Cordis artifact'); return }
   const { Context } = await import(pathToFileURL(join(runtime, 'node_modules', '@deepseek-ai', 'cordis', 'lib', 'index.js')).href)
   const f = fixture(t), root = new Context()
-  const services = await root.plugin({ name: 'fixture-mcp-services', apply(ctx) { for (const name of ['tools', 'storageDomain', 'loader', 'workspaceRegistry', 'webServer', 'webRuntime', 'connection', 'agents']) ctx.provide(name, f.ctx[name]); ctx.provide('pluginInventory', { list: async () => ({ entries: [] }) }) } })
+  const services = await root.plugin({ name: 'fixture-mcp-services', apply(ctx) { for (const name of ['tools', 'storageDomain', 'loader', 'workspaceRegistry', 'webServer', 'connection', 'agents']) ctx.provide(name, f.ctx[name]); ctx.provide('pluginInventory', { list: async () => ({ entries: [] }) }) } })
   t.after(() => services.dispose())
   let installed
   const own = await root.plugin({ name: 'test-app-mcp', inject: ['tools', 'storageDomain', 'loader', 'workspaceRegistry', 'pluginInventory'], async apply(ctx) { installed = await installMcp(ctx, { mcp: { catalogUrl: '', persistSecrets: false } }) } })

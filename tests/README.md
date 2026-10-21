@@ -6,7 +6,7 @@ Install development dependencies with pnpm; skip Electron scripts and optional d
 pnpm install --ignore-scripts --no-optional --config.auto-install-peers=false
 ```
 
-Published API checks use a separately installed DSH 0.2.0-rc.2 runtime. The test-only resolution hook binds every DSH peer to that runtime, avoiding a second, incomplete peer graph:
+Published API checks use a separately installed DSH 0.2.0-rc.2 or 0.2.1-rc.2 runtime. The test-only resolution hook binds every DSH peer to that runtime, avoiding a second, incomplete peer graph. Browser composition checks also require the matching published slots and primitives SDK packages, which a production CLI does not install. Set `DSH_CORE_CLI` to the installed CLI junction to exercise context insight's actual Host dependency resolution:
 
 ```powershell
 $env:DSH_APP_TEST_CORE_ROOT = 'C:\path\to\dsh-runtime'

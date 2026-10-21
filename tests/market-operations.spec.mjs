@@ -30,6 +30,22 @@ function fixture(t) {
   return { profile, write, manifest, install, backups: join(profile, 'backups') }
 }
 
+test('a versioned local replacement installs its requested archive even when the version is unchanged', async t => {
+  const f = fixture(t)
+  const previous = { ...alpha, spec: 'file:' + join(f.profile, 'previous.tgz') }
+  const replacement = { ...alpha, spec: 'file:' + join(f.profile, 'replacement.tgz') }
+  f.install(previous)
+  assert.equal(marketOperationInstalled(f.profile, replacement), undefined)
+  const calls = []
+  const applied = await applyMarketOperations(f.profile, [replacement], async args => {
+    calls.push(args)
+    f.install(replacement)
+  })
+  assert.deepEqual(calls, [['add', '--save-exact', '--config.minimum-release-age=0', replacement.spec]])
+  assert.equal(f.manifest().dependencies[alpha.packageName], replacement.spec)
+  assert.equal(applied[0].actualVersion, alpha.version)
+})
+
 test('queue replacement and cancellation only change pending metadata, and old completion retains a newer request', t => {
   const f = fixture(t)
   const original = readFileSync(join(f.profile, 'package.json'), 'utf8')

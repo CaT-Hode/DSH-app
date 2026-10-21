@@ -189,9 +189,9 @@ async function hostFixture(t, mount = true) {
   const cwd = await workspace(t), routes = new Map(), upgrades = new Map(), tools = new Map(), effects = [], events = new Map()
   const fiber = {}, descriptor = { ns: 'app', value: { sidebar: { agentOpenTools: true, tabsEnabled: {}, viewersEnabled: {}, pluginSettings: {} } }, revision: 1, user: {} }
   const ctx = {
-    fiber, logger: { warn() {}, info() {} }, webRuntime: { trustedHosts: [] },
+    fiber, logger: { warn() {}, info() {} },
     sessions: { get: id => ['s1', 's2'].includes(id) ? { id, header: { cwd }, snapshotEvents: () => [] } : undefined },
-    connection: { requestRejection: req => req.headers.origin !== `http://${req.headers.host}` ? 403 : req.headers.cookie !== 'operator=valid' ? 401 : undefined },
+    connection: { trustedHosts: [], requestRejection: req => req.headers.origin !== `http://${req.headers.host}` ? 403 : req.headers.cookie !== 'operator=valid' ? 401 : undefined },
     loader: { entries: () => [{ fiber, options: { name: 'dsh-app', id: 'app' } }], await: async () => {} },
     settings: { describe: () => [descriptor], configure: () => () => {}, update: async () => {} },
     webServer: { register: route => { routes.set(route.path, route.handler); return () => routes.delete(route.path) }, registerUpgrade: route => { upgrades.set(route.path, route.handler); return () => upgrades.delete(route.path) } },
@@ -343,7 +343,7 @@ test('released Cordis owns the enhanced tools and authenticated socket and withd
   const { Context } = await import(pathToFileURL(join(runtime, 'node_modules/@deepseek-ai/cordis/lib/index.js')).href)
   const f = await hostFixture(t, false), root = new Context()
   const services = await root.plugin({ name: 'sidebar-agent-fixture', apply(ctx) {
-    for (const name of ['webServer', 'sessions', 'webRuntime', 'tools', 'loader', 'settings', 'connection']) ctx.provide(name, f.ctx[name])
+    for (const name of ['webServer', 'sessions', 'tools', 'loader', 'settings', 'connection']) ctx.provide(name, f.ctx[name])
   } })
   t.after(() => services.dispose())
   const owner = await root.plugin({ name: 'sidebar-agent-owner', apply(ctx) { installSidebar(ctx) } })

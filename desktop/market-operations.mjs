@@ -164,6 +164,7 @@ export function marketOperationInstalled(profile, operation, { enabled = true } 
   if (manifest.name !== target.packageName || !EXACT_VERSION.test(manifest.version ?? '') || target.version !== undefined && manifest.version !== target.version
     || typeof dependency !== 'string' || selected !== enabled) return
   if (target.spec === `${target.packageName}@${target.version}` && dependency !== target.version) return
+  if (target.spec.startsWith('file:') && dependency !== target.spec) return
   const patch = manifest.dsh?.bundle?.patch
   const patches = typeof patch === 'string' ? [patch] : Array.isArray(patch) ? patch : []
   if (!patches.length || patches.some(file => {
