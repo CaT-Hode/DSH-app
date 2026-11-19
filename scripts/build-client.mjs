@@ -33,6 +33,6 @@ const factories = [
   factory('../client/plugin.mjs', 'createDshAppClient'),
 ].join('\n')
 const bridge = factory('../client/sidebar-bridge.mjs', 'createSidebarBridge')
-const css = read('../client/style.css') + '\n' + read('../client/mcp.css') + '\n' + read('../client/plugin-pages.css') + '\n' + read('../client/sidebar-settings.css') + '\n' + read('../client/sidebar-workbench.css') + '\n' + read('../client/model-prices.css') + '\n' + read('../client/new-chat.css')
+const css = (read('../client/style.css') + '\n' + read('../client/mcp.css') + '\n' + read('../client/plugin-pages.css') + '\n' + read('../client/sidebar-settings.css') + '\n' + read('../client/sidebar-workbench.css') + '\n' + read('../client/model-prices.css') + '\n' + read('../client/new-chat.css')).replaceAll('\r\n', '\n')
 writeFileSync(new URL('../lib/client.js', import.meta.url), `(function () {\n${bridge}\nregisterSidebarAliases(window.__ModuleLoader__);\nwindow.__ModuleLoader__.load({\n  id: 'dsh-app',\n  factory: (require) => {\n${factories}\n    return createDshAppClient(require, ${JSON.stringify(css)});\n  },\n});\n})();\n`)
 process.stdout.write('Built DSH App client bundle\n')

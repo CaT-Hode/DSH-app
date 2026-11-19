@@ -151,7 +151,8 @@ test('registers and replays through the official Session projection registry', a
 
 test('frontend reads only the current session projections and marks heuristic figures', () => {
   const createElement = (type, props, ...children) => typeof type === 'function' ? type({ ...props, children }) : { type, props, children }
-  const { ContextInsight, ContextSummary, dictionaries } = createContextInsightClient(name => {
+  const { ContextInsight, ContextRing, dictionaries } = createContextInsightClient(name => {
+    if (name === '@deepseek-ai/dsh-client-ui-primitives') return { Tooltip: 'test-tooltip' }
     assert.equal(name, 'react')
     return { createElement }
   })
@@ -161,7 +162,7 @@ test('frontend reads only the current session projections and marks heuristic fi
     event(1, 'assistant/message', { turn: 1, step: 1, message: text('assistant', 'private response', { kind: 'model', provider: 'ASS', model: 'model' }), usage: { inputTokens: 50, outputTokens: 12 } }, 'append'),
   ]))
   const queried = []
-  const useProjection = key => { queried.push(key); return ({ dshAppContext: insight, contextPressure: { pressureTokens: 50, projectedTokens: 62, contextWindow: 100 }, tokenUsage: { uncachedInputTokens: 50, cacheReadTokens: 10, cacheWriteTokens: 5, outputTokens: 12 } })[key] }
+  const useProjection = key => { queried.push(key); return ({ dshAppContext: insight, contextPressure: { pressureTokens: 50, projectedTokens: 62, contextWindow: 100 }, sessionStats: { turns: 6, steps: 12, decodeMs: 2000, decodeTokens: 540 }, tokenUsage: { uncachedInputTokens: 50, cacheReadTokens: 10, cacheWriteTokens: 5, outputTokens: 12 } })[key] }
   const t = (key, parameters = {}) => (dictionaries.zh[key] ?? key).replace(/\{(\w+)\}/g, (_, key) => parameters[key])
   const html = JSON.stringify(ContextInsight({ sessionId: 'current', useProjection, t }))
   assert.match(html, /上下文与活动/)
@@ -176,5 +177,20 @@ test('frontend reads only the current session projections and marks heuristic fi
   assert.match(embedded, /62%/)
   assert.doesNotMatch(embedded, /累计 Token|"name":"模型请求"/)
   assert.match(embedded, /工具统计|最近活动/)
-  assert.match(JSON.stringify(ContextSummary({ sessionId: 'current', useProjection, t })), /62%/)
+  queried.length = 0
+  let opened = false
+  const ring = ContextRing({ sessionId: 'current', useProjection, t, onOpen: () => { opened = true } })
+  assert.deepEqual(queried, ['contextPressure', 'sessionStats', 'tokenUsage'])
+  const label = ring.props.label
+  assert.match(label, /6 轮 12 步 · 270 tok\/s/)
+  assert.match(label, /用量 77 tok · 缓存命中/)
+  assert.equal(label.split('\n').length, 3)
+  const trigger = ring.children[0]
+  assert.match(trigger.props['aria-label'], /62%/)
+  assert.equal(trigger.children[0].children[1].props.strokeDasharray, '62 100')
+  trigger.props.onClick()
+  assert.equal(opened, true)
+  assert.equal(ContextRing({ sessionId: 'current', useProjection: () => ({ projectedTokens: 62 }), t }), null)
+  const withoutCapacity = ContextRing({ sessionId: 'current', useProjection: key => key === 'contextPressure' ? undefined : useProjection(key), t })
+  assert.match(withoutCapacity.props.label, /容量未提供/)
 })

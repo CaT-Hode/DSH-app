@@ -79,6 +79,7 @@ test('Native canvas follows saved light/dark, resolves system locally, refreshes
   applyStartupTheme(nativeTheme, profile, window, 30)
   assert.equal(paints.at(-1), '#191919')
   assert.ok(overlays.every(value => value.height === 30))
+  assert.deepEqual(overlays.map(value => value.color), paints, 'native caption and window share their background in every theme')
 })
 
 test('Loading and recovery HTML share light and dark palettes before scripts or backend calls', () => {

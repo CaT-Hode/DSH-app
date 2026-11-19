@@ -1,10 +1,11 @@
 /** Context insight renders official Session projections and one bounded activity fold. */
 export default function createContextInsightClient(require) {
   const { createElement: h } = require('react')
+  const { Tooltip } = require('@deepseek-ai/dsh-client-ui-primitives')
   const NS = 'dshAppContext'
   const dictionaries = {
     zh: {
-      title: '上下文与活动', summary: '上下文', noSession: '选择一条对话查看上下文与活动',
+      title: '上下文与活动', noSession: '选择一条对话查看上下文与活动',
       selectedSession: '当前会话 · 上下文与活动', unifiedUsage: '费用与用量',
       pending: '正在读取当前对话…', unknown: '尚无用量报告', noRequests: '还没有模型请求',
       used: '预计下一次请求', capacity: '上下文容量', utilization: '利用率', unknownCapacity: '容量未提供',
@@ -24,10 +25,13 @@ export default function createContextInsightClient(require) {
       eventRequest: '模型请求', eventTool: '工具结束', eventCompaction: '上下文压缩', eventPrune: '工具结果裁剪',
       eventInject: '注入上下文', eventModel: '切换模型', eventAttempt: '未完成尝试', failed: '失败',
       chart: '各次请求的输入 Token；API 未报告时显示估算', openUsage: '打开费用与用量',
+      ringActivity: '{turns} 轮 {steps} 步', ringSpeed: '{value} tok/s',
+      ringUsage: '用量 {tokens} tok', ringCache: '缓存命中 {percent}',
+      ringContext: '上下文 ~{used} / {capacity} · {percent}',
       noteLive: '只订阅当前对话；历史与活动随日志增量更新。',
     },
     en: {
-      title: 'Context and activity', summary: 'Context', noSession: 'Select a conversation to inspect context and activity',
+      title: 'Context and activity', noSession: 'Select a conversation to inspect context and activity',
       selectedSession: 'Current conversation · context and activity', unifiedUsage: 'Cost and usage',
       pending: 'Reading the selected conversation…', unknown: 'No usage reported yet', noRequests: 'No model requests yet',
       used: 'Projected next request', capacity: 'Context capacity', utilization: 'Utilization', unknownCapacity: 'Capacity unavailable',
@@ -47,6 +51,9 @@ export default function createContextInsightClient(require) {
       eventRequest: 'Model request', eventTool: 'Tool completed', eventCompaction: 'Context compaction', eventPrune: 'Tool result pruning',
       eventInject: 'Injected context', eventModel: 'Model changed', eventAttempt: 'Unsettled attempt', failed: 'Failed',
       chart: 'Input tokens per request; estimates are shown when API usage is absent', openUsage: 'Open cost and usage',
+      ringActivity: '{turns} turns · {steps} steps', ringSpeed: '{value} tok/s',
+      ringUsage: 'Usage {tokens} tok', ringCache: 'Cache hit {percent}',
+      ringContext: 'Context ~{used} / {capacity} · {percent}',
       noteLive: 'Only the selected conversation is subscribed. History and activity update incrementally from its log.',
     },
   }
@@ -63,10 +70,13 @@ export default function createContextInsightClient(require) {
 .dsh-app-context table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}.dsh-app-context td,.dsh-app-context th{text-align:left;font-size:12px;padding:8px 10px;border-bottom:1px solid var(--dsh-app-border);vertical-align:top}.dsh-app-context th{font-weight:500;color:var(--dsh-app-muted)}.dsh-app-context tr:last-child td{border-bottom:0}.dsh-app-context td>small{display:block;color:var(--dsh-app-muted);font-size:10px}.dsh-app-context-table{overflow-x:auto}.dsh-app-context-table td.model{max-width:280px;overflow-wrap:anywhere}
 .dsh-app-context-chart{width:100%;height:88px;display:block;margin:6px 0 10px;color:var(--dsh-app-text)}.dsh-app-context-chart-line{stroke:currentColor;stroke-width:1.8;fill:none;vector-effect:non-scaling-stroke}.dsh-app-context-chart-grid{stroke:var(--dsh-app-border);stroke-width:1;vector-effect:non-scaling-stroke}
 .dsh-app-context-activity{list-style:none;margin:0;padding:0}.dsh-app-context-activity li{display:grid;grid-template-columns:72px 118px 1fr;gap:12px;border-bottom:1px solid var(--dsh-app-border);padding:8px 0;font-size:12px;overflow-wrap:anywhere}.dsh-app-context-activity li:last-child{border-bottom:0}.dsh-app-context-activity time{color:var(--dsh-app-muted);font-size:11px}.dsh-app-context-activity span{min-width:0}.dsh-app-context-failed{color:var(--dsh-app-warning,#d09167)}
-.dsh-app-context-summary{border:0;background:transparent;color:var(--dsh-app-muted);padding:4px 0;display:flex;align-items:center;gap:8px;font:inherit;font-size:11px;cursor:pointer;font-variant-numeric:tabular-nums}.dsh-app-context-summary:hover{color:var(--dsh-app-text)}.dsh-app-context-summary-track{width:52px;height:4px;overflow:hidden;background:var(--dsh-app-hover);border-radius:4px}.dsh-app-context-summary-track>i{display:block;height:100%;background:currentColor}.dsh-app-context-summary:focus-visible{outline:2px solid currentColor;outline-offset:3px;border-radius:4px}
+.dsh-app-context-ring{display:grid;place-items:center;align-self:center;flex:none;width:24px;height:24px;margin-inline-end:-7px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--dsh-app-muted);cursor:pointer}
+.dsh-app-context-ring:hover{background:var(--dsh-app-hover);color:var(--dsh-app-text)}.dsh-app-context-ring:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.dsh-app-context-ring svg{display:block;transform:translateY(3px)}.dsh-app-context-ring-track{opacity:.26}
 `
   const format = value => new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value)
   const compact = value => new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
+  const percentage = new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 1 })
   const time = value => new Date(value).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   const dateTime = value => new Date(value).toLocaleString(undefined, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
   const totalOf = composition => Object.values(composition ?? {}).reduce((sum, value) => sum + value, 0)
@@ -149,14 +159,45 @@ export default function createContextInsightClient(require) {
           row.failed ? ` · ${t('failed')}` : ''))))] : [h('p', { key: 'empty', className: 'dsh-app-context-empty' }, t('emptyActivity'))], t('recentActivity', { count: insight.limits.activityLimit })),
       h('p', { className: 'dsh-app-context-note' }, t('noteLive')))
   }
-  /** Compact readout beneath the composer; uses the same selected-session projections. */
-  function ContextSummary({ sessionId, useProjection, t, onOpen }) {
-    const { used, capacity, percent, insight, pressure } = useData(useProjection)
-    if (!sessionId || (!insight && !pressure)) return null
-    const reading = capacity ? `~${compact(used)} / ${compact(capacity)} · ${percent}%` : `~${compact(used)} Token`
-    return h('button', { type: 'button', className: 'dsh-app-context-summary', onClick: onOpen, title: `${t('openUsage')} · ${reading}`, 'aria-label': `${t('summary')} ${reading}` },
-      h('span', {}, t('summary')), h('span', {}, reading),
-      capacity ? h('span', { className: 'dsh-app-context-summary-track', 'aria-hidden': true }, h('i', { style: { width: `${Math.min(100, percent)}%` } })) : null)
+  /** Show session telemetry in the tooltip beside the model selector. */
+  function ContextRing({ sessionId, useProjection, t, onOpen }) {
+    const pressure = useProjection('contextPressure')
+    const stats = useProjection('sessionStats')
+    const usage = useProjection('tokenUsage')
+    const used = pressure?.projectedTokens ?? pressure?.pressureTokens
+    const capacity = pressure?.contextWindow
+    if (!sessionId) return null
+    const occupancy = used !== undefined && capacity > 0 ? Math.min(100, Math.max(0, Math.round(used / capacity * 100))) : undefined
+    const rows = []
+    if (stats?.steps > 0) {
+      const counts = t('ringActivity', { turns: format(stats.turns), steps: format(stats.steps) })
+      const speed = stats.decodeMs > 0 ? stats.decodeTokens * 1000 / stats.decodeMs : undefined
+      rows.push(speed === undefined ? counts : `${counts} · ${t('ringSpeed', { value: speed >= 10 ? Math.round(speed) : Math.round(speed * 10) / 10 })}`)
+    }
+    if (usage) {
+      const input = usage.uncachedInputTokens + usage.cacheReadTokens + usage.cacheWriteTokens
+      const total = input + usage.outputTokens
+      if (total > 0) {
+        const tokens = t('ringUsage', { tokens: compact(total) })
+        if (input > 0) {
+          const hit = percentage.format(usage.cacheReadTokens / input)
+          const full = percentage.format(1)
+          const percent = usage.cacheReadTokens < input && hit === full ? `<${full}` : hit
+          rows.push(`${tokens} · ${t('ringCache', { percent })}`)
+        } else rows.push(tokens)
+      }
+    }
+    if (occupancy === undefined && !rows.length) return null
+    const context = occupancy === undefined ? t('unknownCapacity') : t('ringContext', {
+      used: compact(used), capacity: compact(capacity), percent: percentage.format(occupancy / 100),
+    })
+    rows.push(context)
+    const circle = { cx: 8, cy: 8, r: 6, fill: 'none', stroke: 'currentColor', strokeWidth: 2 }
+    const trigger = h('button', { type: 'button', className: 'dsh-app-context-ring', onClick: onOpen, 'aria-label': `${context} · ${t('openUsage')}` },
+      h('svg', { viewBox: '0 0 16 16', width: 14, height: 14, 'aria-hidden': true },
+        h('circle', { ...circle, className: 'dsh-app-context-ring-track' }),
+        occupancy > 0 ? h('circle', { ...circle, pathLength: 100, strokeDasharray: `${occupancy} 100`, transform: 'rotate(-90 8 8)' }) : null))
+    return h(Tooltip, { label: rows.join('\n'), side: 'top', portal: true, delayMs: 180, maxWidth: 320 }, trigger)
   }
-  return { NS, dictionaries, styles, ContextInsight, ContextSummary }
+  return { NS, dictionaries, styles, ContextInsight, ContextRing }
 }

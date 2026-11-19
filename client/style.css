@@ -3,7 +3,6 @@ html[data-dsh-app-ui] {
   --dsh-app-rail-width: 56px;
   --dsh-app-chrome-height: 38px;
 }
-html[data-dsh-app-ui]:not([data-dsh-desktop-chrome]) #root { height: calc(100vh - 38px); margin-top: 38px; }
 .dsh-app-topbar { position: fixed; inset: 0 0 auto; z-index: 17; height: 38px; display: flex; align-items: center; padding-left: 8px; background: var(--dsh-app-chrome); color: var(--dsh-app-muted); }
 .dsh-app-topbar .dsh-app-button { width: 32px; height: 30px; }
 html[data-dsh-desktop-chrome] .dsh-app-topbar { display: none; }
@@ -24,8 +23,7 @@ html[data-dsh-app-ui] body {
   font-kerning: normal;
   /* Neutral Codex surfaces, resolved by the native appearance presenter. */
   --dsh-app-canvas: light-dark(#ffffff, #1e1e1e);
-  --dsh-app-edge: light-dark(#f5f5f7, #212124);
-  --dsh-app-chrome: light-dark(#ededf0, #2e2d32);
+  --dsh-app-chrome: light-dark(#ffffff, #191919);
   --dsh-app-panel: light-dark(#f4f4f5, #2b2b2e);
   --dsh-app-input: light-dark(#f0f0f2, #333336);
   --dsh-app-surface: var(--dsh-app-canvas);
@@ -37,28 +35,37 @@ html[data-dsh-app-ui] body {
   --dsh-app-muted: var(--dsw-alias-label-tertiary, #777);
   background: var(--dsh-app-chrome);
 }
-html[data-dsh-app-ui] #root { box-sizing: border-box; height: 100%; min-height: 0; overflow: clip; }
+html[data-dsh-app-ui] #root {
+  position: fixed;
+  inset: var(--dsh-app-chrome-height) 0 0;
+  box-sizing: border-box;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  overflow: clip;
+}
+/* The desktop preload reserves the caption with a margin until the app loads. */
+html[data-dsh-app-ui][data-dsh-desktop-chrome] #root { height: auto !important; margin-top: 0 !important; }
 html[data-dsh-app-ui] :where(button, input, select, textarea) { font-family: inherit; }
 html[data-dsh-app-ui] :where(code, pre, kbd, samp) { font-family: var(--dsh-app-code-font); }
 html[data-dsh-app-ui][data-dsh-desktop-chrome] { --dsh-app-chrome-height: 38px; }
-html[data-dsh-app-ui] [data-dsh-app-frame] {
-  box-sizing: border-box;
-  margin: 6px 8px 6px 0;
-  height: calc(100% - 12px);
-  border: 1px solid var(--dsh-app-border);
-  border-radius: 18px;
-  background: var(--dsh-app-surface);
+html[data-dsh-app-ui] #dsh-desktop-chrome,
+html[data-dsh-app-ui] #dsh-desktop-chrome > :is(.dsh-chrome-left, .dsh-chrome-main) {
+  background: var(--dsh-app-chrome);
 }
 html[data-dsh-app-ui] [data-dsh-app-frame] {
-  margin-left: var(--dsh-app-rail-width);
-  width: calc(100% - var(--dsh-app-rail-width) - 8px);
+  box-sizing: border-box;
+  margin: 0 0 0 var(--dsh-app-rail-width);
+  width: calc(100% - var(--dsh-app-rail-width));
+  height: 100%;
+  background: var(--dsh-app-surface);
 }
 html[data-dsh-app-ui] [data-dsh-app-frame][data-sidebar-collapsed] {
   grid-template-columns: 0px var(--dsh-app-main-tracks, minmax(0, 1fr) 0px) !important;
 }
 html[data-dsh-app-ui] [data-dsh-app-frame][data-animating] { transition: grid-template-columns 240ms cubic-bezier(.22, 1, .36, 1); }
 html[data-dsh-app-ui] [data-dsh-app-frame][data-dragging] { transition: none; }
-html[data-dsh-app-ui] [data-dsh-app-sidebar-column] { --dsw-alias-bg-base: var(--dsh-app-edge); background: var(--dsh-app-edge); border-right: 1px solid var(--dsh-app-border); }
+html[data-dsh-app-ui] [data-dsh-app-sidebar-column] { --dsw-alias-bg-base: var(--dsh-app-chrome); background: var(--dsh-app-chrome); border-right: 1px solid var(--dsh-app-border); }
 html[data-dsh-app-ui] [data-dsh-app-main] {
   --dsw-alias-bg-base: var(--dsh-app-canvas);
   --dsw-alias-bg-layer-1: var(--dsh-app-panel);
@@ -86,6 +93,11 @@ html[data-dsh-app-ui] [data-dsh-app-main] header:has([data-conversation-tabs]) [
 }
 html[data-dsh-app-ui] [data-composer-card] { background: var(--dsh-app-input); border-radius: 25px; box-shadow: 0 0 0 1px var(--dsh-app-border); }
 html[data-dsh-app-ui] [data-composer-card] [data-composer-input] { min-height: 70px; }
+
+/* The toolbar ring replaces the built-in activity, usage, and context readings. */
+html[data-dsh-app-ui] [data-composer-dock] :is([data-composer-stat="activity"], [data-composer-stat="usage"]),
+html[data-dsh-app-ui] [data-composer-dock] > [style*="--dsh-context-"],
+html[data-dsh-app-ui] [data-composer-dock]:not(:has(> [data-slot="conversation.composer.dock"] > :not([data-composer-stat="activity"], [data-composer-stat="usage"]))) { display: none; }
 
 /* One conversation canvas: the floating workbench changes only the reading
    space and composer stack, leaving the header and scrollport full width. */

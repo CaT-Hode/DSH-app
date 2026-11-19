@@ -10,7 +10,7 @@
 | Retry the plugin | The same page → **Enable and restart** |
 | Inspect model changes | **Model sources / Change history** |
 | Inspect costs and balance | **Cost and usage** at the bottom of the sidebar shows the official API balance, monthly costs, tokens and budget; click it for details. The shared Web service also serves `/dsh-app/cost` |
-| Inspect the selected conversation's context | **Current conversation** on the same **Cost and usage** page, or click the context summary beneath the composer |
+| Inspect conversation usage | Hover over the ring beside the model name to see turns, steps, speed, tokens, cache hits and context occupancy. Click the ring to open **Current conversation** in **Cost and usage** |
 | Manage skills | **Plugins → Skills**, for viewing, creation, editing, enablement, import, recovery and library settings |
 | Configure files, previews and task workbench | **Settings → General** uses compact rows for defaults, feature switches and extension options; Side card is no longer a separate page |
 | Reload the interface | `Ctrl+R` |

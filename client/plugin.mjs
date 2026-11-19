@@ -62,6 +62,9 @@ export default function createDshAppClient(require, css) {
   const sidebarNewChat = createSidebarNewChatClient()
   const modelPrices = createModelPricesClient(require)
   const { UsageHeatmap } = createUsageHeatmapClient(require)
+  // The fixed rail and heading leave the workspace list as the only scroller.
+  const workspaceScroller = { bindScrollerRef: () => {} }
+  const workspaceHookContext = { useSectionScroller: () => workspaceScroller }
   const dictionaries = {
     zh: {
       brand: 'DeepSeek Harness', home: '聊天', recent: '最近对话', new: '新聊天',
@@ -624,7 +627,8 @@ export default function createDshAppClient(require, css) {
       h('aside', { id: 'dsh-app-session-sidebar', className: 'dsh-app-session-sidebar', inert: collapsed ? '' : undefined, 'aria-hidden': collapsed || undefined },
         h('div', { className: 'dsh-app-brand-row' }, h('strong', {}, t('brand')), h(Button, { label: t('search'), icon: 'search', onClick: () => setSearchOpen(true), 'data-dsh-app-action': 'search' })),
         h(Button, { label: t('new'), icon: 'new', onClick: startSession, className: 'dsh-app-new-chat', 'data-dsh-app-action': 'new' }, h('span', {}, t('new'))),
-        h('div', { className: 'dsh-app-workspaces', 'data-dsh-app-workspaces': '', 'data-slot': 'sidebar.workspaces' }, renderSlot('sidebar.workspaces', { wide: true, expandSidebar: () => {} })),
+        h('div', { className: 'dsh-app-workspaces', 'data-dsh-app-workspaces': '', 'data-slot': 'sidebar.workspaces' },
+          renderSlot('sidebar.workspaces', { wide: true, expandSidebar: () => { if (collapsed) toggleSidebar() } }, { hookContext: workspaceHookContext })),
         h('footer', { className: 'dsh-app-sidebar-foot' }, h(CostSummary, { t, wide: true, onOpen: () => choose('dsh-app-cost') }))),
       searchOpen && portal.current ? createPortal(h(SearchDialog, { t, list, search: searchSessions, openSession, onClose: () => setSearchOpen(false) }), portal.current) : null)
   }
@@ -797,7 +801,9 @@ export default function createDshAppClient(require, css) {
         'sidebar.brand.name': { kind: 'single', scope: 'root' },
         'sidebar.toggle.badge': { kind: 'single', scope: 'root' },
         'sidebar.panellist': { kind: 'list', scope: 'root' },
-        'sidebar.workspaces': { kind: 'single', scope: 'root' },
+        'sidebar.workspaces': { kind: 'single', scope: 'root', inject: {
+          hooks: { sectionScroller: (_standard, { useSectionScroller }) => useSectionScroller },
+        } },
         'sidebar.settings': { kind: 'single', scope: 'root' },
         'sidebar.footer.action': { kind: 'list', scope: 'root' },
       }, inject: injection,
@@ -810,9 +816,9 @@ export default function createDshAppClient(require, css) {
       inject: () => ({ remote: ctx.remote }),
     }, modelPrices.ModelPrices)), 'dsh-app: model prices in the Models settings page')
     ctx.slots.inject('dsh-app.usage.body', () => ctx.slots.register({ name: 'dsh-app.usage.body', locale: contextInsight.NS, registrant: 'dsh-app' }, UsageBody))
-    ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({ name: 'conversation.composer.dock', id: 'dsh-app-context', order: 90, locale: contextInsight.NS, registrant: 'dsh-app', inject: () => ({ onOpen: () => {
+    ctx.slots.inject('conversation.input.right', () => ctx.slots.register({ name: 'conversation.input.right', id: 'dsh-app-context', order: 90, locale: contextInsight.NS, registrant: 'dsh-app', inject: () => ({ onOpen: () => {
       ctx.layout.selectPanel('dsh-app-cost')
-    } }) }, contextInsight.ContextSummary))
+    } }) }, contextInsight.ContextRing))
     ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({ name: 'sidebar.panellist', id: 'dsh-app-cost', order: 90, label: () => ctx.locale.bind(NS)('cost'), registrant: 'dsh-app' }, () => h(Icon, { name: 'cost' })))
     syncPanels()
     syncFooters()

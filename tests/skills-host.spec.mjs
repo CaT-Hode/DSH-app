@@ -101,6 +101,24 @@ test('damaged previous policy fails closed without replacing its file', async t 
   assert.equal(await fs.readFile(f.manager.legacyFile, 'utf8'), broken)
 })
 
+test('skill catalog refresh shares one plugin inventory even when loading it exceeds the cache lifetime', async t => {
+  const f = await fixture(t)
+  await skill(join(f.home, 'skills', 'sample'), 'sample')
+  let now = Date.now()
+  let inventoryReads = 0
+  t.mock.method(Date, 'now', () => now)
+  const get = f.ctx.get.bind(f.ctx)
+  f.ctx.get = name => name === 'pluginInventory' ? { async list() {
+    inventoryReads++
+    now += 2000
+    return { entries: f.entries }
+  } } : get(name)
+  const state = await f.manager.state(f.cwd)
+  assert.equal(state.skills[0].name, 'sample')
+  assert.equal(state.discovery.owned, 1)
+  assert.equal(inventoryReads, 1)
+})
+
 test('a model-only external skill keeps its command disabled while model toggles leave its file unchanged', async t => {
   const f = await fixture(t), path = join(f.userHome, '.codex', 'skills', 'model-only')
   await skill(path, 'model-only', 'disable-model-invocation: false\nuser-invocable: false\n')

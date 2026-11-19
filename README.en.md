@@ -41,7 +41,7 @@ Switch between Browse, Skills and MCP in one plugin center instead of searching 
 <details>
 <summary>About these recordings</summary>
 
-These GIFs show the current DSH App client using an isolated DSH `0.2.0-rc.2` configuration, a sample workspace and a locally prepared demonstration conversation. They contain no personal conversations or API keys. Side Chat shows an unsent draft; no model messages are sent. Pauses and playback timing are adjusted for clarity and are not a performance benchmark. The header is generated brand artwork; the GIFs show the actual interface.
+These GIFs show an earlier DSH App build on DSH `0.2.0-rc.2`, using an isolated demo profile, sample workspace and locally prepared conversation. They contain no personal conversations or API keys. Side Chat shows an unsent draft; no model messages are sent. Pauses and playback timing are adjusted for clarity and are not a performance benchmark. The header is generated brand artwork; the GIFs show the actual interface.
 
 [Asset provenance and recording notes](docs/assets/readme/README.md)
 
@@ -51,7 +51,7 @@ These GIFs show the current DSH App client using an isolated DSH `0.2.0-rc.2` co
 
 ### Conversations and working content share a canvas
 
-The navigation rail, project sidebar, header, composer and floating workbench use a consistent graphite surface hierarchy, with light and dark appearances. The message body and workbench coordinate their layout to keep conversations readable. The whale welcome screen asks what to do in the selected project; without a project it invites you to explore.
+The navigation rail, project sidebar, title bar and Windows caption buttons share a background in light and dark mode. The main pane reaches the right and bottom edges of the window. The floating workbench makes room for itself when opened and recenters the conversation when closed. The whale welcome screen asks what to do in the selected project. With no project selected, it invites you to explore.
 
 ### Files, previews and Git stay close to the conversation
 
@@ -107,13 +107,15 @@ The built-in marketplace places official plugins first and labels their provenan
 
 Skills and MCP remain in the plugin center. Cost and usage keeps its own entry instead of being duplicated in the third-party `…` menu.
 
+The ring beside the model name brings the composer statistics into one place. Hover to see turns, steps, generation speed, total tokens, cache hit rate and context occupancy for the current conversation. Click it to open the conversation details in Cost and usage.
+
 ## Quick start
 
 ### Requirements
 
 - **Windows**, **Node.js 24+** and **pnpm 11**.
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) installed, with `dsh` available in your terminal.
-- Current plugin version: **0.3.7**. Validated baselines: **DSH 0.2.0-rc.2 / 0.2.1-rc.2**, with Electron **44**. Upgrading to 0.2.1 requires compatible IM Connect, Code Review and Simplify versions and removing the retired experimental Schedule bundle, now included in the official Web composition; retain existing configuration and data.
+- DSH App **0.3.8** supports **DSH 0.2.0-rc.2, 0.2.1-rc.2 and 0.2.2-rc.5**. The desktop shell uses Electron **44**.
 - Read the migration notes first if you already use separate sidebar, Codex UI, marketplace, MCP or cost plugins.
 
 ### 1. Install into your Web profile
@@ -151,6 +153,14 @@ Install DSH App into my web profile using https://github.com/CaT-Hode/DSH-app an
 </details>
 
 ## Plugin compatibility and migration
+
+### Upgrade to DSH 0.2.2
+
+DSH App 0.3.8 supports the workspace interface in DSH `0.2.2-rc.5`. A Skills refresh now reads the plugin inventory once. Back up the Web profile before upgrading and keep the existing model settings, conversations and plugin data.
+
+Verified community plugin versions include IM Connect `1.0.46`, Code Review `1.0.14` and Simplify `1.0.11`. If `@deepseek-ai/dsh-experimental-agent-team-profile` is enabled, remove it from the enabled list during the upgrade. The DSH 0.2.2 base profile provides Agent Team.
+
+### Built-in features and predecessor plugins
 
 These capabilities are integrated. **Do not enable their original plugins in the same profile.** Hiding a button can leave duplicate routes, services or listeners. Back up configuration and data before migrating; DSH App does not uninstall other plugins automatically.
 
