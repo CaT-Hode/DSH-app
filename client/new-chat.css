@@ -33,7 +33,6 @@ html[data-dsh-app-ui] [data-dsh-app-main] [data-content-phase="hero"] [data-slot
 html[data-dsh-app-ui] [data-dsh-app-main] [data-content-phase="hero"] [data-slot="conversation.composer.bar"] > div { box-sizing: border-box; flex: none; width: 100%; max-width: 792px; padding-inline: 0; }
 html[data-dsh-app-ui] [data-content-phase="hero"] [data-slot="conversation.input.dock"]:empty { display: none; }
 html[data-dsh-app-ui] [data-content-phase="hero"] [data-composer-card] { border-radius: 24px; padding-top: 12px; }
-html[data-dsh-app-ui] [data-content-phase="hero"] [data-composer-card] [data-composer-input] { min-height: 72px; }
 @media (max-width: 640px), (max-height: 640px) {
   html[data-dsh-app-ui] [data-dsh-app-main] [data-content-phase="hero"] [data-composer-seat] { min-height: 340px; }
   html[data-dsh-app-ui] [data-dsh-app-main] [data-content-phase="hero"] [data-composer-seat] :has(> [data-slot="conversation.composer.bar"]) > div:has([data-slot="conversation.hero.brand.mark"]) { padding-block: 24px 36px; min-height: 150px; }

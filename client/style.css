@@ -58,20 +58,29 @@ html[data-dsh-app-ui] [data-dsh-app-frame] {
   margin: 0 0 0 var(--dsh-app-rail-width);
   width: calc(100% - var(--dsh-app-rail-width));
   height: 100%;
-  background: var(--dsh-app-surface);
+  background: var(--dsh-app-chrome);
+  border-block-start: 1px solid var(--dsh-app-border);
+  border-inline-start: 1px solid var(--dsh-app-border);
+  border-start-start-radius: 14px;
+  border-end-start-radius: 14px;
 }
 html[data-dsh-app-ui] [data-dsh-app-frame][data-sidebar-collapsed] {
   grid-template-columns: 0px var(--dsh-app-main-tracks, minmax(0, 1fr) 0px) !important;
 }
 html[data-dsh-app-ui] [data-dsh-app-frame][data-animating] { transition: grid-template-columns 240ms cubic-bezier(.22, 1, .36, 1); }
 html[data-dsh-app-ui] [data-dsh-app-frame][data-dragging] { transition: none; }
-html[data-dsh-app-ui] [data-dsh-app-sidebar-column] { --dsw-alias-bg-base: var(--dsh-app-chrome); background: var(--dsh-app-chrome); border-right: 1px solid var(--dsh-app-border); }
+html[data-dsh-app-ui] [data-dsh-app-sidebar-column] {
+  --dsw-alias-bg-base: var(--dsh-app-chrome);
+  background: var(--dsh-app-chrome);
+  border-inline-end: 0;
+}
 html[data-dsh-app-ui] [data-dsh-app-main] {
   --dsw-alias-bg-base: var(--dsh-app-canvas);
   --dsw-alias-bg-layer-1: var(--dsh-app-panel);
   --dsw-alias-bg-layer-2: var(--dsh-app-input);
   --dsw-specific-input-major: var(--dsh-app-input);
-  min-height: 0; background: var(--dsh-app-canvas);
+  min-height: 0;
+  background: var(--dsh-app-canvas);
 }
 html[data-dsh-app-ui] [data-dsh-app-main] > * { min-height: 0; }
 html[data-dsh-app-ui] [data-dsh-app-main] header[data-window-drag] { min-height: 58px; border-bottom-color: transparent; }
@@ -92,7 +101,8 @@ html[data-dsh-app-ui] [data-dsh-app-main] header:has([data-conversation-tabs]) [
   html[data-dsh-app-ui] [data-dsh-app-main] header[data-window-drag]:has([data-conversation-tabs]) { gap: 8px; padding-inline: 12px; }
 }
 html[data-dsh-app-ui] [data-composer-card] { background: var(--dsh-app-input); border-radius: 25px; box-shadow: 0 0 0 1px var(--dsh-app-border); }
-html[data-dsh-app-ui] [data-composer-card] [data-composer-input] { min-height: 70px; }
+html[data-dsh-app-ui] [data-composer-card] [data-composer-input] { min-height: 50px; }
+html[data-dsh-app-ui] [data-dsh-app-main] [data-content-phase="active"] [data-composer-seat] { padding-block-end: 10px; }
 
 /* The toolbar ring replaces the built-in activity, usage, and context readings. */
 html[data-dsh-app-ui] [data-composer-dock] :is([data-composer-stat="activity"], [data-composer-stat="usage"]),

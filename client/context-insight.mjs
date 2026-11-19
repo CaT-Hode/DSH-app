@@ -72,7 +72,7 @@ export default function createContextInsightClient(require) {
 .dsh-app-context-activity{list-style:none;margin:0;padding:0}.dsh-app-context-activity li{display:grid;grid-template-columns:72px 118px 1fr;gap:12px;border-bottom:1px solid var(--dsh-app-border);padding:8px 0;font-size:12px;overflow-wrap:anywhere}.dsh-app-context-activity li:last-child{border-bottom:0}.dsh-app-context-activity time{color:var(--dsh-app-muted);font-size:11px}.dsh-app-context-activity span{min-width:0}.dsh-app-context-failed{color:var(--dsh-app-warning,#d09167)}
 .dsh-app-context-ring{display:grid;place-items:center;align-self:center;flex:none;width:24px;height:24px;margin-inline-end:-7px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--dsh-app-muted);cursor:pointer}
 .dsh-app-context-ring:hover{background:var(--dsh-app-hover);color:var(--dsh-app-text)}.dsh-app-context-ring:focus-visible{outline:2px solid currentColor;outline-offset:2px}
-.dsh-app-context-ring svg{display:block;transform:translateY(3px)}.dsh-app-context-ring-track{opacity:.26}
+.dsh-app-context-ring svg{display:block;transform:translate(5px,2px)}.dsh-app-context-ring-track{opacity:.26}
 `
   const format = value => new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value)
   const compact = value => new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value)

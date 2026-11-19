@@ -51,7 +51,9 @@ These GIFs show an earlier DSH App build on DSH `0.2.0-rc.2`, using an isolated 
 
 ### Conversations and working content share a canvas
 
-The navigation rail, project sidebar, title bar and Windows caption buttons share a background in light and dark mode. The main pane reaches the right and bottom edges of the window. The floating workbench makes room for itself when opened and recenters the conversation when closed. The whale welcome screen asks what to do in the selected project. With no project selected, it invites you to explore.
+The navigation rail, project sidebar, title bar and Windows caption buttons share a background in light and dark mode. A fine divider with rounded corners separates the navigation buttons from the session list and workspace. The main pane reaches the right and bottom edges of the window. The whale welcome screen asks what to do in the selected project. With no project selected, it invites you to explore.
+
+The composer starts compact in new and existing chats and grows as you type more lines. In an existing chat it leaves space above the bottom edge of the window. An empty, editable composer shows `Work with DeepSeek Harness`.
 
 ### Files, previews and Git stay close to the conversation
 
